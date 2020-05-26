@@ -27,6 +27,7 @@ private:
   int32_t available;
   int32_t head;
   int32_t tail;
+  bool sorted;
   Node<T> buffer[SIZE];
 
   void swap(const int32_t i, const int32_t j)
@@ -50,9 +51,13 @@ private:
     buffer[j].prev = jn;
     buffer[j].next = in;
 
-    buffer[buffer[i].next].prev = i;
-    buffer[buffer[j].prev].next = j;
-    buffer[buffer[j].next].prev = j;
+    if ( buffer[i].next != -1 )
+      buffer[buffer[i].next].prev = i;
+    if ( buffer[j].prev != -1 )
+      buffer[buffer[j].prev].next = j;
+    if ( buffer[j].next != -1 )
+      buffer[buffer[j].next].prev = j;
+    if ( buffer[i].prev != -1 )
     buffer[buffer[i].prev].next = i;
 
     // swap
@@ -86,6 +91,7 @@ public:
     tail = -1;
     available = 0;
     head = -1;
+    sorted = false;
   }
 
   int32_t insert(const uint32_t index, const T data)
@@ -131,7 +137,7 @@ public:
       }
     }
     available = next_available;
-
+    sorted = false;
     return curr_available;
   }
 
@@ -168,6 +174,7 @@ public:
     buffer[index] = Node<T>{};
     buffer[index].next = available;
     available = index;
+    sorted = false;
     return true;
   }
 
@@ -182,6 +189,26 @@ public:
     head = 0;
     tail = i - 1;
     available = i < SIZE ? i : -1;
+    sorted = true;
+  }
+
+  int32_t search(const T data) const
+  {
+    if ( !sorted )
+      return -1;
+    int32_t left {head};
+    int32_t right {tail};
+    while ( left < right )
+    {
+      int32_t middle {(right - left) / 2 + left};
+      if ( data == buffer[middle].data )
+	return middle;
+      else if ( data < buffer[middle].data )
+	right = middle;
+      else
+	left = middle + 1;
+    }
+    return left;
   }
 
   #ifdef CATCH_CONFIG_MAIN

@@ -6,11 +6,11 @@ DONE:
 - Inserting
 - Deleting
 - Swapping
-TODO:
 - Sorting
-- Searching
-- Arduino Test
 - Github
+- Searching
+TODO:
+- Arduino Test
 */
 #define CATCH_CONFIG_MAIN
 #include <iostream>
@@ -30,6 +30,16 @@ public:
 
   TestNode(int v) : value(v)
   {
+  }
+
+  bool operator <(const TestNode &a) const
+  {
+    return value < a.value;
+  }
+
+  bool operator ==(const TestNode &a) const
+  {
+    return value == a.value;
   }
 };
 
@@ -234,8 +244,8 @@ TEST_CASE("Swap", "[buffer]")
   buffer.insert(3,TestNode('D'));
   // "2:3:A -1:2:B 1:0:C 0:-1:D -1:-1:? BCAD
  
-  REQUIRE(buffer.getAvailable() == 4); 
   buffer.doSwap(0,1);
+  REQUIRE(buffer.getAvailable() == 4);
   REQUIRE(buffer.getHead() == 0);
   REQUIRE(buffer.dump() == "-1:2:B 2:3:A 0:1:C 1:-1:D -1:-1:? ");
   REQUIRE(buffer.traverse() == "BCAD");
@@ -263,3 +273,35 @@ TEST_CASE("Sort", "[buffer]")
   REQUIRE(buffer.dump() == "-1:1:B 0:2:C 1:3:A 2:-1:D ");
 }
 
+TEST_CASE("Compare", "[test]")
+{
+  REQUIRE((TestNode('A') < TestNode('B')) == true);
+  REQUIRE((TestNode('B') < TestNode('A')) == false);
+}
+
+TEST_CASE("Search", "[buffer]")
+{
+  Buffer<TestNode, 4> buffer;
+  buffer.insert(TestNode('B'));
+  buffer.insert(TestNode('D'));
+  buffer.insert(TestNode('E'));
+  buffer.insert(TestNode('F'));
+
+  REQUIRE(buffer.getHead() == 0);
+  REQUIRE(buffer.getTail() == 3);
+  REQUIRE(buffer.traverse() == "BDEF");
+  // can't find if unsorted
+  REQUIRE(buffer.search(TestNode('B')) == -1);
+  // find A
+  buffer.sort();
+  REQUIRE(buffer.getHead() == 0);
+  REQUIRE(buffer.getTail() == 3);
+  REQUIRE(buffer.traverse() == "BDEF");
+  REQUIRE(buffer.search(TestNode('A')) == 0);
+  REQUIRE(buffer.search(TestNode('B')) == 0);
+  REQUIRE(buffer.search(TestNode('C')) == 1);
+  REQUIRE(buffer.search(TestNode('D')) == 1);
+  REQUIRE(buffer.search(TestNode('E')) == 2);
+  REQUIRE(buffer.search(TestNode('F')) == 3);
+  REQUIRE(buffer.search(TestNode('G')) == 3);
+}
