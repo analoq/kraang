@@ -15,7 +15,7 @@ TODO:
 #define CATCH_CONFIG_MAIN
 #include <iostream>
 #include "catch.hpp"
-#include "Buffer.hpp"
+#include "../Buffer.hpp"
 
 using namespace std;
 
