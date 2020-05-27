@@ -40,6 +40,7 @@ public:
 
   int8_t import(Sequence &sequence)
   {
+    sequence.clear();
     // header
     fseek(fp, 8, SEEK_CUR); // MThd, size
     int16_t format = read_int(2);
@@ -52,6 +53,7 @@ public:
     // tracks
     for ( int16_t i = 0; i < tracks; i ++ )
     {
+      sequence.returnToZero();
 	uint8_t track_name[80];
         uint32_t track_size, track_pos;
 	// track header
@@ -65,7 +67,7 @@ public:
 	while (ftell(fp) < track_pos+track_size)
 	{
 	  uint8_t event, channel;
-	  int8_t param1, param2;
+	  uint8_t param1, param2;
 	  
 	  uint32_t delta_time = read_varlength();
 	  track_time += delta_time;
@@ -85,15 +87,15 @@ public:
 	    case Event::NoteOff:
 		    param1 = fgetc(fp);
 		    param2 = fgetc(fp);
-		    //printf("%d Note OFF %d\n", track_time, param1);
+		    sequence.addEvent(Event{track_time, Event::NoteOff, channel, param1, 0});
 		    break;
 	    case Event::NoteOn:
 		    param1 = fgetc(fp);
 		    param2 = fgetc(fp);
-		    //if (param2)
-		    //  printf("%d Note ON %d %d\n", track_time, param1, param2);
-		    //else
-	            //  printf("%d Note OFF %d\n", track_time, param1);
+		    if (param2)
+		      sequence.addEvent(Event{track_time, Event::NoteOn, channel, param1, param2});
+		    else
+		      sequence.addEvent(Event{track_time, Event::NoteOff, channel, param1, 0});
 		    break;
 	    case Event::PolyAfter:
 		    param1 = fgetc(fp);

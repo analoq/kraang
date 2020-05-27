@@ -41,11 +41,43 @@ ostream& operator<<(ostream &o, const TestNode& node)
   return o;
 }
 
-template<uint32_t N>
-string traverse(Buffer<TestNode,N> &buffer)
+const char *getNote(const int note)
+{
+  // 60 = C4
+  const char *notes[12] = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
+  return notes[note % 12];
+}
+
+int getOctave(const int note)
+{
+  return note / 12 - 1;
+}
+
+ostream& operator<<(ostream &o, const Event& event)
+{
+  o << event.position << ":" << static_cast<int>(event.channel) << ":";
+  switch ( event.type )
+  {
+    case Event::NoteOn:
+      o << "NoteOn," << getNote(event.param1) << getOctave(event.param1) << "," << static_cast<int>(event.param2);
+      break;
+    case Event::NoteOff:
+      o << "NoteOff," << getNote(event.param1) << getOctave(event.param1) << "," << static_cast<int>(event.param2);
+      break;
+    default:
+      o << static_cast<int>(event.type)
+        << "," << static_cast<int>(event.param1)
+        << "," << static_cast<int>(event.param2);
+  }
+  o << endl;
+  return o;
+}
+
+template<class T, uint32_t N>
+string traverse(Buffer<T,N> &buffer)
 {
   stringstream result;
-  for ( const TestNode &node : buffer )
+  for ( const T &node : buffer )
     result << node;
   return result.str();
 }
@@ -244,16 +276,17 @@ TEST_CASE("Compare", "[test]")
 
 TEST_CASE("Buffer insert sorted", "[buffer]")
 {
-  Buffer<TestNode, 6> buffer;
+  Buffer<TestNode, 7> buffer;
   REQUIRE(buffer.insert_sorted(TestNode('E')) == 0);
   REQUIRE(buffer.insert_sorted(TestNode('C')) == 1);
   REQUIRE(buffer.insert_sorted(TestNode('A')) == 2);
   REQUIRE(traverse(buffer) == "ACE");
 
   REQUIRE(buffer.insert_sorted(TestNode('B')) == 3);
-  REQUIRE(buffer.insert_sorted(3,TestNode('C')) == 4);
-  REQUIRE(buffer.insert_sorted(4,TestNode('D')) == 5);
-  REQUIRE(traverse(buffer) == "ABCCDE");
+  REQUIRE(buffer.insert_sorted(3, TestNode('C')) == 4);
+  REQUIRE(buffer.insert_sorted(4, TestNode('D')) == 5);
+  REQUIRE(buffer.insert_sorted(5, TestNode('F')) == 6);
+  REQUIRE(traverse(buffer) == "ABCCDEF");
 }
 
 TEST_CASE("Swap", "[buffer]")
@@ -336,6 +369,22 @@ TEST_CASE("Event", "[event]")
   REQUIRE(event == Event{1,Event::NoteOff,5,6,7});
 }
 
+TEST_CASE("Sequence", "[sequence]")
+{
+  Sequence sequence;
+  sequence.addEvent(Event{10, Event::NoteOn, 1, 60, 1});
+  sequence.addEvent(Event{20, Event::NoteOff, 2, 62, 2});
+  sequence.addEvent(Event{30, Event::NoteOn, 3, 63, 3});
+  sequence.returnToZero();
+  sequence.addEvent(Event{15, Event::NoteOn, 4, 61, 4});
+  sequence.addEvent(Event{35, Event::NoteOff, 5, 64, 5});
+  REQUIRE(traverse(sequence.getBuffer()) == "10:1:NoteOn,C4,1\n"
+                                            "15:4:NoteOn,C#4,4\n"
+					    "20:2:NoteOff,D4,2\n"
+                                            "30:3:NoteOn,D#4,3\n"
+					    "35:5:NoteOff,E4,5\n");
+}
+
 TEST_CASE("MIDIFile", "[midifile]")
 {
   Sequence sequence;
@@ -347,4 +396,5 @@ TEST_CASE("MIDIFile", "[midifile]")
 
   REQUIRE(sequence.getTicks() == 960);
   REQUIRE(sequence.getBpm() == 120.0);
+  cout << traverse(sequence.getBuffer()) << endl;
 }

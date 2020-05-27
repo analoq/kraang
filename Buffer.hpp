@@ -152,9 +152,12 @@ public:
 
   int32_t insert_sorted(int32_t index, const T data)
   {
-    while ( !(data < buffer[index].data) )
+    while ( index != -1 && !(data < buffer[index].data) )
       index = buffer[index].next;
-    return insert(index, data); 
+    if ( index == -1 )
+      return insert(data);
+    else
+      return insert(index, data); 
   }
 
   int32_t insert_sorted(const T data)

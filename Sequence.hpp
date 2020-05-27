@@ -9,8 +9,8 @@ public:
   enum Type : uint8_t
   {
     None = 0x00,
-    NoteOn = 0x80,
-    NoteOff = 0x90,
+    NoteOff = 0x80,
+    NoteOn = 0x90,
     PolyAfter = 0xA0,
     Expression = 0xB0,
     ProgChange = 0xC0,
@@ -52,8 +52,17 @@ private:
   uint16_t ticks;
   int32_t index;
 public:
-  Sequence() : index{0}, bpm{120.0}, ticks{24}
+  Sequence()
   {
+    clear();
+  }
+
+  void clear()
+  {
+    buffer.clear();
+    index = -1;
+    bpm = 120.0;
+    ticks = 24;
   }
 
   double getBpm() const
@@ -76,8 +85,24 @@ public:
     ticks = t;
   }
 
+  void returnToZero()
+  {
+    index = -1;
+  }
+
   void addEvent(Event event)
   {
+    if ( index == -1 )
+      index = buffer.insert_sorted(event);
+    else
+      index = buffer.insert_sorted(index, event);
   }
+
+  #ifdef CATCH_CONFIG_MAIN
+  Buffer<Event,SIZE> &getBuffer()
+  {
+    return buffer;
+  }
+  #endif
 };
 #endif
