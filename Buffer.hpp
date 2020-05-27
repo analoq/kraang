@@ -1,3 +1,5 @@
+#ifndef BUFFER_HPP
+#define BUFFER_HPP
 #ifdef CATCH_CONFIG_MAIN
 #include <sstream>
 using namespace std;
@@ -29,6 +31,7 @@ private:
   int32_t tail;
   bool sorted;
   Node<T> buffer[SIZE];
+  int32_t iterator;
 
   void swap(const int32_t i, const int32_t j)
   {
@@ -88,6 +91,7 @@ public:
       else
         buffer[i].next = i + 1;
     }
+    iterator = -1;
     tail = -1;
     available = 0;
     head = -1;
@@ -146,6 +150,20 @@ public:
     return insert(available, data);
   }
 
+  int32_t insert_sorted(int32_t index, const T data)
+  {
+    while ( !(data < buffer[index].data) )
+      index = buffer[index].next;
+    return insert(index, data); 
+  }
+
+  int32_t insert_sorted(const T data)
+  {
+    if ( head == -1 )
+      return insert(data);
+    return insert_sorted(head, data);
+  }
+
   bool remove(uint32_t index)
   {
     if ( index >= SIZE )
@@ -178,6 +196,8 @@ public:
     return true;
   }
 
+  // sorting O(n)
+
   void sort()
   {
     int32_t i {0};
@@ -191,6 +211,8 @@ public:
     available = i < SIZE ? i : -1;
     sorted = true;
   }
+
+  // search O(log n)
 
   int32_t search(const T data) const
   {
@@ -212,6 +234,33 @@ public:
   }
 
   #ifdef CATCH_CONFIG_MAIN
+  Buffer& begin()
+  {
+    iterator = head;
+    return *this;
+  }
+
+  bool operator!=(const Buffer &rhs) const
+  {
+    return iterator != -1;
+  }
+
+  const Buffer& end() const
+  {
+    return *this;
+  }
+
+  Buffer& operator++()
+  {
+    iterator = buffer[iterator].next;
+    return *this;
+  }
+
+  const T& operator*() const
+  {
+    return buffer[iterator].data;
+  }
+
   void doSwap(const int32_t i, const int32_t j)
   {
     swap(i, j);
@@ -239,13 +288,6 @@ public:
       result << buffer[i].prev << ":" << buffer[i].next << ":" << buffer[i].data << " ";
     return result.str();
   }
-
-  string traverse() const
-  {
-    stringstream result;
-    for ( int current{head}; current != -1; current = buffer[current].next )
-      result << buffer[current].data;
-    return result.str();
-  }
   #endif
 };
+#endif
