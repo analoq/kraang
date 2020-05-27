@@ -83,6 +83,50 @@ string traverse(Buffer<T,N> &buffer)
 }
 
 
+class CFile : public File
+{
+private:
+  FILE *fp;
+  bool is_valid;
+public:
+  CFile(const char *path)
+  {
+    fp = fopen(path, "rb");
+    is_valid = (fp != NULL);
+  }
+
+  bool isValid() const
+  {
+    return is_valid;
+  }
+
+  void close()
+  {
+    fclose(fp);
+  }
+
+  uint8_t readByte()
+  {
+    return fgetc(fp);
+  }
+
+  void read(uint32_t length, uint8_t *data)
+  {
+    fread(data, length, 1, fp);
+  }
+
+  uint32_t getPosition() const
+  {
+    return ftell(fp);
+  }
+
+  void seek(int32_t position)
+  {
+    fseek(fp, position, SEEK_CUR);
+  }
+};
+
+
 TEST_CASE("New buffer is empty", "[buffer]")
 {
   Buffer<TestNode, 2> buffer;
@@ -388,10 +432,10 @@ TEST_CASE("Sequence", "[sequence]")
 TEST_CASE("MIDIFile", "[midifile]")
 {
   Sequence sequence;
-  FILE *fp = fopen("midi_0.mid", "rb");
-  REQUIRE(fp != NULL);
+  CFile file {"midi_0.mid"};
+  REQUIRE(file.isValid());
 
-  MIDIFile midi_file{fp};
+  MIDIFile midi_file{file};
   REQUIRE(midi_file.import(sequence) == 0);
 
   REQUIRE(sequence.getTicks() == 960);

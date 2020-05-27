@@ -1,15 +1,32 @@
 #include "Sequence.hpp"
 
+class File
+{
+public:
+  virtual bool isValid() const = 0;
+
+  virtual void close() = 0;
+
+  virtual uint8_t readByte() = 0;
+
+  virtual void read(uint32_t length, uint8_t *data) = 0;
+
+  virtual uint32_t getPosition() const = 0;
+
+  virtual void seek(int32_t position) = 0;
+};
+
+
 class MIDIFile
 {
 private:
-  FILE *fp;
+  File &fp;
 
   int32_t read_int(uint8_t length)
   {
     int32_t value = 0;
     while (length --)
-      value = (value << 8) + fgetc(fp);
+      value = (value << 8) + fp.readByte();
     return value;
   }
 
@@ -17,32 +34,32 @@ private:
   {
     int32_t value;
     uint8_t c;
-    if ( (value = fgetc(fp)) & 0x80 )
+    if ( (value = fp.readByte()) & 0x80 )
     {
       value &= 0x7f;
       do
       {
-        value = (value << 7) + ((c = getc(fp)) & 0x7f);
+        value = (value << 7) + ((c = fp.readByte()) & 0x7f);
       } while (c & 0x80);
     }
     return value;
   }
 
 public:
-  MIDIFile(FILE *fp) : fp{fp}
+  MIDIFile(File &fp) : fp{fp}
   {
   }
 
   ~MIDIFile()
   {
-    fclose(fp);
+    fp.close();
   }
 
   int8_t import(Sequence &sequence)
   {
     sequence.clear();
     // header
-    fseek(fp, 8, SEEK_CUR); // MThd, size
+    fp.seek(8); // MThd, size
     int16_t format = read_int(2);
     int16_t tracks = read_int(2);
     int16_t ticks = read_int(2);
@@ -57,14 +74,14 @@ public:
 	uint8_t track_name[80];
         uint32_t track_size, track_pos;
 	// track header
-	fseek(fp, 4, SEEK_CUR); // MTrk
+	fp.seek(4); // MTrk
 	track_size = read_int(4);
-	track_pos = ftell(fp);
+	track_pos = fp.getPosition();
 	
 	// events
 	uint32_t track_time = 0;
 	uint8_t status = 0;
-	while (ftell(fp) < track_pos+track_size)
+	while (fp.getPosition() < track_pos+track_size)
 	{
 	  uint8_t event, channel;
 	  uint8_t param1, param2;
@@ -72,11 +89,11 @@ public:
 	  uint32_t delta_time = read_varlength();
 	  track_time += delta_time;
 	  
-	  uint8_t peak_ahead = fgetc(fp);
+	  uint8_t peak_ahead = fp.readByte();
 	  if (peak_ahead & 0x80)
 	    status = peak_ahead;
 	  else
-	    fseek(fp, -1, SEEK_CUR);
+	    fp.seek(-1);
 	  
 	  event = status & 0xF0;
 	  channel = status & 0x0F;
@@ -85,38 +102,38 @@ public:
 	  switch ( event )
 	  {
 	    case Event::NoteOff:
-		    param1 = fgetc(fp);
-		    param2 = fgetc(fp);
+		    param1 = fp.readByte();
+		    param2 = fp.readByte();
 		    sequence.addEvent(Event{track_time, Event::NoteOff, channel, param1, 0});
 		    break;
 	    case Event::NoteOn:
-		    param1 = fgetc(fp);
-		    param2 = fgetc(fp);
+		    param1 = fp.readByte();
+		    param2 = fp.readByte();
 		    if (param2)
 		      sequence.addEvent(Event{track_time, Event::NoteOn, channel, param1, param2});
 		    else
 		      sequence.addEvent(Event{track_time, Event::NoteOff, channel, param1, 0});
 		    break;
 	    case Event::PolyAfter:
-		    param1 = fgetc(fp);
-		    param2 = fgetc(fp);
+		    param1 = fp.readByte();
+		    param2 = fp.readByte();
 		    break;
 	    case Event::Expression:
-		    param1 = fgetc(fp);
-		    param2 = fgetc(fp);
+		    param1 = fp.readByte();
+		    param2 = fp.readByte();
 		    //if ( param1 == 64)
 		    //  printf("Sustain %d\n", param1);
 		    break;
 	    case Event::ProgChange:
-		    param1 = fgetc(fp);
+		    param1 = fp.readByte();
 		    //printf("Program change %d\n", param1);
 		    break;
 	    case Event::AfterTouch:
-		    param1 = fgetc(fp);
+		    param1 = fp.readByte();
 		    break;
 	    case Event::PitchBend:
-		    param1 = fgetc(fp);
-		    param2 = fgetc(fp);
+		    param1 = fp.readByte();
+		    param2 = fp.readByte();
 		    break;
 	    case Event::SysEx:
 		    switch ( channel )
@@ -127,7 +144,7 @@ public:
 			      break;
 		      // Meta Event
 		      case 0xF: 
-			  type = fgetc(fp);
+			  type = fp.readByte();
 			  size = read_varlength();
 			  switch ( type )
 			  {
@@ -137,11 +154,11 @@ public:
 				    break;
 				  case 0x58:
 				    printf("Time Signature: %d %d %d %d\n",
-					     fgetc(fp), fgetc(fp), fgetc(fp), fgetc(fp));
+					     fp.readByte(), fp.readByte(), fp.readByte(), fp.readByte());
 				    break;
 				  case 0x03:
 				    // track name
-				    fread(track_name, size < sizeof(track_name) ? size : sizeof(track_name), 1, fp);
+				    fp.read(size < sizeof(track_name) ? size : sizeof(track_name), track_name);
 				    track_name[size] = 0;
 				    //printf("Track Name: %s\n", track_name);
 				    break;
@@ -163,7 +180,7 @@ public:
 				  case 0x2f:
 					  // end of track
 				  default:
-					  fseek(fp, size, SEEK_CUR);
+					  fp.seek(size);
 			  }
 			  break;
 			default:
