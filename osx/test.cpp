@@ -62,7 +62,7 @@ ostream& operator<<(ostream &o, const Event& event)
       o << "NoteOn," << getNote(event.param1) << getOctave(event.param1) << "," << static_cast<int>(event.param2);
       break;
     case Event::NoteOff:
-      o << "NoteOff," << getNote(event.param1) << getOctave(event.param1) << "," << static_cast<int>(event.param2);
+      o << "NoteOff," << getNote(event.param1) << getOctave(event.param1);
       break;
     default:
       o << static_cast<int>(event.type)
@@ -424,21 +424,44 @@ TEST_CASE("Sequence", "[sequence]")
   sequence.addEvent(Event{35, Event::NoteOff, 5, 64, 5});
   REQUIRE(traverse(sequence.getBuffer()) == "10:1:NoteOn,C4,1\n"
                                             "15:4:NoteOn,C#4,4\n"
-					    "20:2:NoteOff,D4,2\n"
+					    "20:2:NoteOff,D4\n"
                                             "30:3:NoteOn,D#4,3\n"
-					    "35:5:NoteOff,E4,5\n");
+					    "35:5:NoteOff,E4\n");
 }
 
 TEST_CASE("MIDIFile", "[midifile]")
 {
   Sequence sequence;
-  CFile file {"midi_0.mid"};
-  REQUIRE(file.isValid());
+  char midi[] = "0:0:NoteOn,C4,20\n"
+		"100:0:NoteOff,C4\n"
+		"120:1:NoteOn,C#3,60\n"
+		"220:1:NoteOff,C#3\n"
+		"240:0:NoteOn,D4,30\n"
+		"340:0:NoteOff,D4\n"
+		"360:1:NoteOn,D#3,70\n"
+		"460:1:NoteOff,D#3\n"
+		"480:0:NoteOn,E4,40\n"
+		"580:0:NoteOff,E4\n"
+		"600:1:NoteOn,F3,80\n"
+		"700:1:NoteOff,F3\n"
+		"720:0:NoteOn,F#4,50\n"
+		"820:0:NoteOff,F#4\n"
+		"840:1:NoteOn,G3,90\n"
+		"940:1:NoteOff,G3\n";
 
-  MIDIFile midi_file{file};
-  REQUIRE(midi_file.import(sequence) == 0);
+  CFile file0 {"midi_0.mid"};
+  REQUIRE(file0.isValid());
+  MIDIFile midi_file0{file0};
+  REQUIRE(midi_file0.import(sequence) == 0);
+  REQUIRE(sequence.getTicks() == 480);
+  REQUIRE(sequence.getBpm() == 80.0);
+  REQUIRE(traverse(sequence.getBuffer()) == midi);
 
-  REQUIRE(sequence.getTicks() == 960);
-  REQUIRE(sequence.getBpm() == 120.0);
-  cout << traverse(sequence.getBuffer()) << endl;
+  CFile file1 {"midi_1.mid"};
+  REQUIRE(file1.isValid());
+  MIDIFile midi_file1{file1};
+  REQUIRE(midi_file1.import(sequence) == 0);
+  REQUIRE(sequence.getTicks() == 480);
+  REQUIRE(sequence.getBpm() == 80.0);
+  REQUIRE(traverse(sequence.getBuffer()) == midi);
 }

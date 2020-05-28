@@ -63,8 +63,8 @@ public:
     int16_t format = read_int(2);
     int16_t tracks = read_int(2);
     int16_t ticks = read_int(2);
-    //printf("Format: %d\n", format);
-    //printf("Tracks: %d\n", tracks);
+    printf("Format: %d\n", format);
+    printf("Tracks: %d\n", tracks);
     //printf("Ticks: %d\n", ticks);
     sequence.setTicks(ticks);
     // tracks
@@ -121,12 +121,12 @@ public:
 	    case Event::Expression:
 		    param1 = fp.readByte();
 		    param2 = fp.readByte();
-		    //if ( param1 == 64)
-		    //  printf("Sustain %d\n", param1);
+		    if ( param1 == 64)
+		      printf("%d: Sustain %d\n", track_time, param1);
 		    break;
 	    case Event::ProgChange:
 		    param1 = fp.readByte();
-		    //printf("Program change %d\n", param1);
+		    printf("%d: Program change %d\n", track_time, param1);
 		    break;
 	    case Event::AfterTouch:
 		    param1 = fp.readByte();
@@ -149,18 +149,18 @@ public:
 			  switch ( type )
 			  {
 				  case 0x51:
-				    //printf("Tempo: %f\n", 60000000.0 / read_int(3));
 				    sequence.setBpm(60000000.0 / read_int(3));
+				    printf("%d: Tempo: %f\n", track_time, sequence.getBpm());
 				    break;
 				  case 0x58:
-				    printf("Time Signature: %d %d %d %d\n",
-					     fp.readByte(), fp.readByte(), fp.readByte(), fp.readByte());
+				    printf("%d: Time Signature: %d %d %d %d\n",
+					     track_time, fp.readByte(), fp.readByte(), fp.readByte(), fp.readByte());
 				    break;
 				  case 0x03:
 				    // track name
 				    fp.read(size < sizeof(track_name) ? size : sizeof(track_name), track_name);
 				    track_name[size] = 0;
-				    //printf("Track Name: %s\n", track_name);
+				    printf("Track Name: %s\n", track_name);
 				    break;
 					  
 				  case 0x00:
