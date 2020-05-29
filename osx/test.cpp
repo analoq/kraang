@@ -8,6 +8,8 @@
 #include "../Buffer.hpp"
 #include "../Sequence.hpp"
 #include "../MIDIFile.hpp"
+#include "../Player.hpp"
+#include "CFile.hpp"
 
 using namespace std;
 
@@ -73,7 +75,7 @@ ostream& operator<<(ostream &o, const Event& event)
   return o;
 }
 
-template<class T, uint32_t N>
+template<class T, uint16_t N>
 string traverse(Buffer<T,N> &buffer)
 {
   stringstream result;
@@ -82,47 +84,50 @@ string traverse(Buffer<T,N> &buffer)
   return result.str();
 }
 
-
-class CFile : public File
+class TestTiming : public Timing
 {
 private:
-  FILE *fp;
-  bool is_valid;
+  uint32_t microseconds;
 public:
-  CFile(const char *path)
+  TestTiming() : microseconds{0}
   {
-    fp = fopen(path, "rb");
-    is_valid = (fp != NULL);
   }
 
-  bool isValid() const
+  uint32_t getMicroseconds()
   {
-    return is_valid;
+    return microseconds;
+  }
+ 
+  void delay(uint32_t us)
+  {
+    microseconds += us;
+  }
+};
+
+
+class TestMIDIPort : public MIDIPort
+{
+private:
+  stringstream log;
+  uint32_t time;
+public:
+  TestMIDIPort()
+  {
   }
 
-  void close()
+  void send(const Event &event)
   {
-    fclose(fp);
+    log << time << ":" << event;
   }
 
-  uint8_t readByte()
+  void setTime(uint32_t t)
   {
-    return fgetc(fp);
+    time = t;
   }
 
-  void read(uint32_t length, uint8_t *data)
+  string getLog() const
   {
-    fread(data, length, 1, fp);
-  }
-
-  uint32_t getPosition() const
-  {
-    return ftell(fp);
-  }
-
-  void seek(int32_t position)
-  {
-    fseek(fp, position, SEEK_CUR);
+    return log.str();
   }
 };
 
@@ -454,7 +459,6 @@ TEST_CASE("MIDIFile", "[midifile]")
   MIDIFile midi_file0{file0};
   REQUIRE(midi_file0.import(sequence) == 0);
   REQUIRE(sequence.getTicks() == 480);
-  REQUIRE(sequence.getBpm() == 80.0);
   REQUIRE(traverse(sequence.getBuffer()) == midi);
 
   CFile file1 {"midi_1.mid"};
@@ -462,6 +466,39 @@ TEST_CASE("MIDIFile", "[midifile]")
   MIDIFile midi_file1{file1};
   REQUIRE(midi_file1.import(sequence) == 0);
   REQUIRE(sequence.getTicks() == 480);
-  REQUIRE(sequence.getBpm() == 80.0);
   REQUIRE(traverse(sequence.getBuffer()) == midi);
+}
+
+TEST_CASE("Player", "[player]")
+{
+  Sequence sequence;
+  TestTiming timing;
+  TestMIDIPort midi_port;
+
+  CFile file {"midi_1.mid"};
+  MIDIFile midi_file{file};
+  midi_file.import(sequence);
+  Player player{sequence, timing, midi_port};
+  for ( int i{0}; i < 480*4; i ++ )
+  {
+    midi_port.setTime(timing.getMicroseconds());
+    player.tick();
+  }
+  char result[] = "0:0:0:NoteOn,C4,20\n"
+		  "104100:100:0:NoteOff,C4\n"
+		  "124920:120:1:NoteOn,C#3,60\n"
+		  "229020:220:1:NoteOff,C#3\n"
+		  "249840:240:0:NoteOn,D4,30\n"
+		  "353940:340:0:NoteOff,D4\n"
+		  "374760:360:1:NoteOn,D#3,70\n"
+		  "478860:460:1:NoteOff,D#3\n"
+		  "499680:480:0:NoteOn,E4,40\n"
+		  "603780:580:0:NoteOff,E4\n"
+		  "624600:600:1:NoteOn,F3,80\n"
+		  "728700:700:1:NoteOff,F3\n"
+		  "749520:720:0:NoteOn,F#4,50\n"
+		  "853620:820:0:NoteOff,F#4\n"
+		  "874440:840:1:NoteOn,G3,90\n"
+		  "978540:940:1:NoteOff,G3\n";
+  REQUIRE(midi_port.getLog() == result);
 }

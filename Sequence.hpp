@@ -48,9 +48,8 @@ class Sequence
 {
 private:
   Buffer<Event, SIZE> buffer;
-  double bpm;
   uint16_t ticks;
-  int32_t index;
+  int16_t index;
 public:
   Sequence()
   {
@@ -60,19 +59,8 @@ public:
   void clear()
   {
     buffer.clear();
-    index = -1;
-    bpm = 120.0;
+    index = UNDEFINED;
     ticks = 24;
-  }
-
-  double getBpm() const
-  {
-    return bpm;
-  }
-
-  void setBpm(double b)
-  {
-    bpm = b;
   }
 
   uint16_t getTicks() const
@@ -85,14 +73,36 @@ public:
     ticks = t;
   }
 
+  void returnToHead()
+  {
+    index = buffer.getHead();
+  }
+
   void returnToZero()
   {
-    index = -1;
+    index = UNDEFINED;
+  }
+
+  const bool hasEvent() const
+  {
+    return index != UNDEFINED;
+  }
+
+  const Event& getEvent() const
+  {
+    assert(index >= 0 && index < SIZE);
+    return buffer[index];
+  }
+
+  void nextEvent()
+  {
+    if ( index != UNDEFINED )
+      index = buffer.getNext(index);
   }
 
   void addEvent(Event event)
   {
-    if ( index == -1 )
+    if ( index == UNDEFINED )
       index = buffer.insert_sorted(event);
     else
       index = buffer.insert_sorted(index, event);

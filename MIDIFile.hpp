@@ -1,3 +1,5 @@
+#ifndef MIDIFILE_HPP
+#define MIDIFILE_HPP
 #include "Sequence.hpp"
 
 class File
@@ -102,39 +104,48 @@ public:
 	  switch ( event )
 	  {
 	    case Event::NoteOff:
-		    param1 = fp.readByte();
-		    param2 = fp.readByte();
-		    sequence.addEvent(Event{track_time, Event::NoteOff, channel, param1, 0});
-		    break;
+	      param1 = fp.readByte();
+	      param2 = fp.readByte();
+	      sequence.addEvent(Event{track_time, Event::NoteOff, channel, param1, 0});
+	      break;
 	    case Event::NoteOn:
-		    param1 = fp.readByte();
-		    param2 = fp.readByte();
-		    if (param2)
-		      sequence.addEvent(Event{track_time, Event::NoteOn, channel, param1, param2});
-		    else
-		      sequence.addEvent(Event{track_time, Event::NoteOff, channel, param1, 0});
-		    break;
+	      param1 = fp.readByte();
+	      param2 = fp.readByte();
+	      if (param2)
+		sequence.addEvent(Event{track_time, Event::NoteOn, channel, param1, param2});
+	      else
+		sequence.addEvent(Event{track_time, Event::NoteOff, channel, param1, 0});
+	      break;
 	    case Event::PolyAfter:
-		    param1 = fp.readByte();
-		    param2 = fp.readByte();
-		    break;
+	      param1 = fp.readByte();
+	      param2 = fp.readByte();
+	      break;
 	    case Event::Expression:
-		    param1 = fp.readByte();
-		    param2 = fp.readByte();
-		    if ( param1 == 64)
-		      printf("%d: Sustain %d\n", track_time, param1);
-		    break;
+	      param1 = fp.readByte();
+	      param2 = fp.readByte();
+	      switch ( param1 )
+	      {
+		case 1: // modulation
+		  sequence.addEvent(Event{track_time, Event::Expression, channel, param1, param2});
+		  break;
+		case 64: // sustain pedal
+		  printf("%d: Sustain %d\n", track_time, param1);
+		  break;
+	      }
+	      break;
 	    case Event::ProgChange:
-		    param1 = fp.readByte();
-		    printf("%d: Program change %d\n", track_time, param1);
-		    break;
+	      param1 = fp.readByte();
+	      sequence.addEvent(Event{track_time, Event::ProgChange, channel, param1, 0});
+	      printf("%d: Program change %d\n", track_time, param1);
+	      break;
 	    case Event::AfterTouch:
-		    param1 = fp.readByte();
-		    break;
+	      param1 = fp.readByte();
+	      break;
 	    case Event::PitchBend:
-		    param1 = fp.readByte();
-		    param2 = fp.readByte();
-		    break;
+	      param1 = fp.readByte();
+	      param2 = fp.readByte();
+	      sequence.addEvent(Event{track_time, Event::PitchBend, channel, param1, param2});
+	      break;
 	    case Event::SysEx:
 		    switch ( channel )
 		    {
@@ -149,8 +160,7 @@ public:
 			  switch ( type )
 			  {
 				  case 0x51:
-				    sequence.setBpm(60000000.0 / read_int(3));
-				    printf("%d: Tempo: %f\n", track_time, sequence.getBpm());
+				    printf("%d: Tempo: %f\n", track_time, 60000000.0 / read_int(3));
 				    break;
 				  case 0x58:
 				    printf("%d: Time Signature: %d %d %d %d\n",
@@ -192,6 +202,8 @@ public:
 	    }
       }
     }
+    sequence.returnToHead();
     return 0;
   }
 };
+#endif

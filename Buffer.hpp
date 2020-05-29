@@ -5,24 +5,26 @@
 using namespace std;
 #endif
 
+static const int16_t UNDEFINED {-1};
+
 template<class T>
 class Node
 {
 public:
-  int32_t next;
-  int32_t prev;
+  int16_t next;
+  int16_t prev;
   T data;
 
-  Node() : next{-1}, prev{-1}
+  Node() : next{UNDEFINED}, prev{UNDEFINED}
   {
   }
 
-  Node(T data) : data{data}, next{-1}, prev{-1}
+  Node(T data) : data{data}, next{UNDEFINED}, prev{UNDEFINED}
   {
   }
 };
 
-template<class T, uint32_t SIZE>
+template<class T, uint16_t SIZE>
 class Buffer
 {
 private:
@@ -54,13 +56,13 @@ private:
     buffer[j].prev = jn;
     buffer[j].next = in;
 
-    if ( buffer[i].next != -1 )
+    if ( buffer[i].next != UNDEFINED )
       buffer[buffer[i].next].prev = i;
-    if ( buffer[j].prev != -1 )
+    if ( buffer[j].prev != UNDEFINED )
       buffer[buffer[j].prev].next = j;
-    if ( buffer[j].next != -1 )
+    if ( buffer[j].next != UNDEFINED )
       buffer[buffer[j].next].prev = j;
-    if ( buffer[i].prev != -1 )
+    if ( buffer[i].prev != UNDEFINED )
     buffer[buffer[i].prev].next = i;
 
     // swap
@@ -87,27 +89,27 @@ public:
     {
       buffer[i] = Node<T>{};
       if ( i == SIZE - 1 )
-	buffer[i].next = -1;
+	buffer[i].next = UNDEFINED;
       else
         buffer[i].next = i + 1;
     }
-    iterator = -1;
-    tail = -1;
+    iterator = UNDEFINED;
+    tail = UNDEFINED;
     available = 0;
-    head = -1;
+    head = UNDEFINED;
     sorted = false;
   }
 
-  int32_t insert(const uint32_t index, const T data)
+  const int32_t insert(const uint32_t index, const T data)
   {
     if ( index >= SIZE )
       return -1;
-    if ( available == -1 )
+    if ( available == UNDEFINED )
       return -1;
 
     const int32_t curr_available {available};
     const int32_t next_available {buffer[available].next};
-    if ( head == -1 && tail == -1 )
+    if ( head == UNDEFINED && tail == UNDEFINED )
     {
       // new node at beginning
       buffer[0] = Node<T>{data};
@@ -145,49 +147,49 @@ public:
     return curr_available;
   }
 
-  int32_t insert(const T data)
+  const int32_t insert(const T data)
   {
     return insert(available, data);
   }
 
-  int32_t insert_sorted(int32_t index, const T data)
+  const int32_t insert_sorted(int32_t index, const T data)
   {
-    while ( index != -1 && !(data < buffer[index].data) )
+    while ( index != UNDEFINED && !(data < buffer[index].data) )
       index = buffer[index].next;
-    if ( index == -1 )
+    if ( index == UNDEFINED )
       return insert(data);
     else
       return insert(index, data); 
   }
 
-  int32_t insert_sorted(const T data)
+  const int32_t insert_sorted(const T data)
   {
-    if ( head == -1 )
+    if ( head == UNDEFINED )
       return insert(data);
     return insert_sorted(head, data);
   }
 
-  bool remove(uint32_t index)
+  const bool remove(const uint32_t index)
   {
     if ( index >= SIZE )
       return false;
 
     if ( index == head && index == tail )
     {
-      head = -1;
-      tail = -1;
+      head = UNDEFINED;
+      tail = UNDEFINED;
     }
     else if ( index == head )
     {
       head = buffer[head].next;
-      buffer[head].prev = -1;
+      buffer[head].prev = UNDEFINED;
     }
     else if ( index == tail )
     {
       tail = buffer[tail].prev;
-      buffer[tail].next = -1;
+      buffer[tail].next = UNDEFINED;
     }
-    else if ( buffer[index].prev != -1 && buffer[index].next != -1 )
+    else if ( buffer[index].prev != UNDEFINED && buffer[index].next != UNDEFINED )
     {
       buffer[buffer[index].prev].next = buffer[index].next;
       buffer[buffer[index].next].prev = buffer[index].prev;
@@ -199,19 +201,34 @@ public:
     return true;
   }
 
+  const T& operator[](const int16_t index) const
+  {
+    return buffer[index].data;
+  }
+
+  const int32_t getNext(const int16_t index) const
+  {
+    return buffer[index].next;
+  }
+
+  int32_t getHead() const
+  {
+    return head;
+  }
+
   // sorting O(n)
 
   void sort()
   {
     int32_t i {0};
-    for ( int32_t current{head}; current != -1; ++i )
+    for ( int32_t current{head}; current != UNDEFINED; ++i )
     {
       swap(i, current);
       current = buffer[i].next;
     }
     head = 0;
     tail = i - 1;
-    available = i < SIZE ? i : -1;
+    available = i < SIZE ? i : UNDEFINED;
     sorted = true;
   }
 
@@ -245,7 +262,7 @@ public:
 
   bool operator!=(const Buffer &rhs) const
   {
-    return iterator != -1;
+    return iterator != UNDEFINED;
   }
 
   const Buffer& end() const
@@ -267,11 +284,6 @@ public:
   void doSwap(const int32_t i, const int32_t j)
   {
     swap(i, j);
-  }
-
-  int32_t getHead() const
-  {
-    return head;
   }
 
   int32_t getTail() const
