@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include "../File.hpp"
 
 class CFile : public File
 {

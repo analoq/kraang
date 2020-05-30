@@ -4,6 +4,8 @@
 #include <sstream>
 using namespace std;
 #endif
+#include <stdint.h>
+#include <assert.h>
 
 static const int16_t UNDEFINED {-1};
 
