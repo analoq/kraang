@@ -144,7 +144,7 @@ public:
 			  switch ( type )
 			  {
 				  case 0x51:
-				    printf("%d: Tempo: %f\n", track_time, 60000000.0 / read_int(3));
+				    sequence.addEvent(Event{track_time, Event::Tempo, fp.readByte(), fp.readByte(), fp.readByte()});
 				    break;
 				  case 0x58:
 				    printf("%d: Time Signature: %d %d %d %d\n",

@@ -42,7 +42,8 @@ public:
 	break;
       switch ( event.type )
       {
-	case Event::SysEx:
+	case Event::Tempo:
+	  bpm = event.getBpm();
 	  break;
 	default:
 	  midi_port.send(event);

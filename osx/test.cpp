@@ -57,14 +57,20 @@ int getOctave(const int note)
 
 ostream& operator<<(ostream &o, const Event& event)
 {
-  o << event.position << ":" << static_cast<int>(event.channel) << ":";
+  o << event.position << ":";
   switch ( event.type )
   {
     case Event::NoteOn:
-      o << "NoteOn," << getNote(event.param1) << getOctave(event.param1) << "," << static_cast<int>(event.param2);
+      o << static_cast<int>(event.channel) << ":NoteOn,"
+	<< getNote(event.param1) << getOctave(event.param1) << ","
+	<< static_cast<int>(event.param2);
       break;
     case Event::NoteOff:
-      o << "NoteOff," << getNote(event.param1) << getOctave(event.param1);
+      o << static_cast<int>(event.channel) << ":NoteOff,"
+	<< getNote(event.param1) << getOctave(event.param1);
+      break;
+    case Event::Tempo:
+      o << "Tempo," << fixed << setprecision(1) << event.getBpm();
       break;
     default:
       o << static_cast<int>(event.type)
@@ -437,7 +443,8 @@ TEST_CASE("Sequence", "[sequence]")
 TEST_CASE("MIDIFile", "[midifile]")
 {
   Sequence sequence;
-  char midi[] = "0:0:NoteOn,C4,20\n"
+  char midi[] = "0:Tempo,100.0\n"
+                "0:0:NoteOn,C4,20\n"
 		"100:0:NoteOff,C4\n"
 		"120:1:NoteOn,C#3,60\n"
 		"220:1:NoteOff,C#3\n"
@@ -452,7 +459,8 @@ TEST_CASE("MIDIFile", "[midifile]")
 		"720:0:NoteOn,F#4,50\n"
 		"820:0:NoteOff,F#4\n"
 		"840:1:NoteOn,G3,90\n"
-		"940:1:NoteOff,G3\n";
+		"940:1:NoteOff,G3\n"
+		"1920:Tempo,80.0\n";
 
   CFile file0 {"midi_0.mid"};
   REQUIRE(file0.isValid());
@@ -485,20 +493,20 @@ TEST_CASE("Player", "[player]")
     player.tick();
   }
   char result[] = "0:0:0:NoteOn,C4,20\n"
-		  "104100:100:0:NoteOff,C4\n"
-		  "124920:120:1:NoteOn,C#3,60\n"
-		  "229020:220:1:NoteOff,C#3\n"
-		  "249840:240:0:NoteOn,D4,30\n"
-		  "353940:340:0:NoteOff,D4\n"
-		  "374760:360:1:NoteOn,D#3,70\n"
-		  "478860:460:1:NoteOff,D#3\n"
-		  "499680:480:0:NoteOn,E4,40\n"
-		  "603780:580:0:NoteOff,E4\n"
-		  "624600:600:1:NoteOn,F3,80\n"
-		  "728700:700:1:NoteOff,F3\n"
-		  "749520:720:0:NoteOn,F#4,50\n"
-		  "853620:820:0:NoteOff,F#4\n"
-		  "874440:840:1:NoteOn,G3,90\n"
-		  "978540:940:1:NoteOff,G3\n";
+		  "124900:100:0:NoteOff,C4\n"
+		  "149880:120:1:NoteOn,C#3,60\n"
+		  "274780:220:1:NoteOff,C#3\n"
+		  "299760:240:0:NoteOn,D4,30\n"
+		  "424660:340:0:NoteOff,D4\n"
+		  "449640:360:1:NoteOn,D#3,70\n"
+		  "574540:460:1:NoteOff,D#3\n"
+		  "599520:480:0:NoteOn,E4,40\n"
+		  "724420:580:0:NoteOff,E4\n"
+		  "749400:600:1:NoteOn,F3,80\n"
+		  "874300:700:1:NoteOff,F3\n"
+		  "899280:720:0:NoteOn,F#4,50\n"
+		  "1024180:820:0:NoteOff,F#4\n"
+		  "1049160:840:1:NoteOn,G3,90\n"
+		  "1174060:940:1:NoteOff,G3\n";
   REQUIRE(midi_port.getLog() == result);
 }
