@@ -37,7 +37,7 @@ private:
   }
 public:
   Player(Sequence &s, Timing &t, MIDIPort &p)
-    : position{0}, sequence{s}, delay_offset{0}, timing{t}, midi_port{p}
+    : position{0}, sequence{s}, timing{t}, midi_port{p}
   {
     setBpm(120.0);
   }
