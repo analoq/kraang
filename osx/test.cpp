@@ -493,20 +493,20 @@ TEST_CASE("Player", "[player]")
     player.tick();
   }
   char result[] = "0:0:0:NoteOn,C4,20\n"
-		  "124900:100:0:NoteOff,C4\n"
-		  "149880:120:1:NoteOn,C#3,60\n"
-		  "274780:220:1:NoteOff,C#3\n"
-		  "299760:240:0:NoteOn,D4,30\n"
-		  "424660:340:0:NoteOff,D4\n"
-		  "449640:360:1:NoteOn,D#3,70\n"
-		  "574540:460:1:NoteOff,D#3\n"
-		  "599520:480:0:NoteOn,E4,40\n"
-		  "724420:580:0:NoteOff,E4\n"
-		  "749400:600:1:NoteOn,F3,80\n"
-		  "874300:700:1:NoteOff,F3\n"
-		  "899280:720:0:NoteOn,F#4,50\n"
-		  "1024180:820:0:NoteOff,F#4\n"
-		  "1049160:840:1:NoteOn,G3,90\n"
-		  "1174060:940:1:NoteOff,G3\n";
+		  "125000:100:0:NoteOff,C4\n"
+		  "150000:120:1:NoteOn,C#3,60\n"
+		  "275000:220:1:NoteOff,C#3\n"
+		  "300000:240:0:NoteOn,D4,30\n"
+		  "425000:340:0:NoteOff,D4\n"
+		  "450000:360:1:NoteOn,D#3,70\n"
+		  "575000:460:1:NoteOff,D#3\n"
+		  "600000:480:0:NoteOn,E4,40\n"
+		  "725000:580:0:NoteOff,E4\n"
+		  "750000:600:1:NoteOn,F3,80\n"
+		  "875000:700:1:NoteOff,F3\n"
+		  "900000:720:0:NoteOn,F#4,50\n"
+		  "1025000:820:0:NoteOff,F#4\n"
+		  "1050000:840:1:NoteOn,G3,90\n"
+		  "1175000:940:1:NoteOff,G3\n";
   REQUIRE(midi_port.getLog() == result);
 }

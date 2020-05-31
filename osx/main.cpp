@@ -10,10 +10,19 @@ using namespace std;
 
 class CTiming : public Timing
 {
+private:
+  chrono::time_point<std::chrono::high_resolution_clock> start;
 public:
+  CTiming()
+  {
+    start = chrono::high_resolution_clock::now();
+  }
+
   uint32_t getMicroseconds()
   {
-    return 0;
+    auto now = chrono::high_resolution_clock::now();
+    double diff = chrono::duration<double, std::micro>(now - start).count();
+    return static_cast<uint32_t>(diff);
   }
  
   void delay(uint32_t us)
@@ -66,15 +75,21 @@ public:
 
 int main(int argc, char *argv[])
 {
+  if ( argc != 2 )
+  {
+    cout << "Usage: main <file.mid>" << endl;
+    return -1;
+  }
   MacMIDIPort midi_port;
   Sequence sequence;
   CTiming timing;
-  CFile file{"midi_0.mid"};
+  CFile file{argv[1]};
   MIDIFile midi_file{file};
   midi_file.import(sequence);
   Player player{sequence, timing, midi_port};
+  cout << "Ticks: " << sequence.getTicks() << endl;
   cin.ignore(1);
-  for ( int i{0}; i < 480*4; i ++ )
-    player.tick();
+  while (player.tick())
+    cout << player.getBpm() << "\t" << player.getDelay() << " \r";
   return 0;
 }

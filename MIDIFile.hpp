@@ -113,14 +113,13 @@ public:
 		  sequence.addEvent(Event{track_time, Event::Expression, channel, param1, param2});
 		  break;
 		case 64: // sustain pedal
-		  printf("%d: Sustain %d\n", track_time, param1);
+		  sequence.addEvent(Event{track_time, Event::Expression, channel, param1, param2});
 		  break;
 	      }
 	      break;
 	    case Event::ProgChange:
 	      param1 = fp.readByte();
 	      sequence.addEvent(Event{track_time, Event::ProgChange, channel, param1, 0});
-	      printf("%d: Program change %d\n", track_time, param1);
 	      break;
 	    case Event::AfterTouch:
 	      param1 = fp.readByte();

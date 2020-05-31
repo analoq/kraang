@@ -1,5 +1,6 @@
 #ifndef PLAYER_HPP
 #define PLAYER_HPP
+#include <math.h>
 #include "Sequence.hpp"
 
 class Timing
@@ -24,16 +25,34 @@ class Player
 private:
   uint32_t position;
   double bpm;
+  uint32_t delay;
   Sequence &sequence;
   MIDIPort &midi_port;
   Timing &timing;
+
+  void setBpm(double b)
+  {
+    bpm = b;
+    delay = static_cast<uint32_t>(round(6e7 / (bpm * sequence.getTicks())));
+  }
 public:
   Player(Sequence &s, Timing &t, MIDIPort &p)
-    : position{0}, bpm{120.0}, sequence{s}, timing{t}, midi_port{p}
+    : position{0}, sequence{s}, delay_offset{0}, timing{t}, midi_port{p}
   {
+    setBpm(120.0);
   }
 
-  void tick()
+  const double getBpm() const
+  {
+    return bpm;
+  }
+
+  const uint32_t getDelay() const
+  {
+    return delay;
+  }
+
+  bool tick()
   {
     for ( ; sequence.hasEvent(); sequence.nextEvent())
     {
@@ -43,14 +62,19 @@ public:
       switch ( event.type )
       {
 	case Event::Tempo:
-	  bpm = event.getBpm();
+	  setBpm(event.getBpm());
 	  break;
 	default:
 	  midi_port.send(event);
       }
     }
-    timing.delay(6e7 / (bpm * sequence.getTicks()));
     position += 1;
+    bool hasEvent {sequence.hasEvent()};
+
+    uint32_t start {timing.getMicroseconds()};
+    while ( timing.getMicroseconds() - start < delay )
+      timing.delay(10);
+    return hasEvent;
   }
 };
 #endif
