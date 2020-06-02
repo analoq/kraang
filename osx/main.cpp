@@ -4,6 +4,7 @@
 #include "../MIDIFile.hpp"
 #include <thread>
 #include <iostream>
+#include <iomanip>
 #include <CoreMIDI/CoreMIDI.h>
 
 using namespace std;
@@ -89,7 +90,15 @@ int main(int argc, char *argv[])
   Player player{sequence, timing, midi_port};
   cout << "Ticks: " << sequence.getTicks() << endl;
   cin.ignore(1);
+  int count = 0;
   while (player.tick())
-    cout << player.getBpm() << "\t" << player.getDelay() << " \r";
+  {
+    if ( count++ % sequence.getTicks() == 0 )
+    {
+      cout << fixed << setw(4) << setprecision(1) << player.getBpm() << "\t"
+           << fixed << setw(3) << player.getMeasure()+1 << ":"
+  	   << fixed << setw(2) << static_cast<int>(player.getBeat()+1) << "\n";
+    }
+  }
   return 0;
 }

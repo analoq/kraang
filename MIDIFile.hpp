@@ -146,8 +146,9 @@ public:
 				    sequence.addEvent(Event{track_time, Event::Tempo, fp.readByte(), fp.readByte(), fp.readByte()});
 				    break;
 				  case 0x58:
-				    printf("%d: Time Signature: %d %d %d %d\n",
-					     track_time, fp.readByte(), fp.readByte(), fp.readByte(), fp.readByte());
+				    sequence.addEvent(Event{track_time, Event::Meter, fp.readByte(),
+					                    static_cast<uint8_t>(1 << fp.readByte()), fp.readByte()});
+				    fp.readByte(); // ignore # of 1/32nd notes per 24 MIDI clocks
 				    break;
 				  case 0x03:
 				    // track name

@@ -17,7 +17,8 @@ public:
     AfterTouch = 0xD0,
     PitchBend = 0xE0,
     SysEx = 0xF0,
-    Tempo = 0xFF,
+    Tempo = 0xFE,
+    Meter = 0xFF,
   } type;
   union
   {

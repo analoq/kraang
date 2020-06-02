@@ -72,6 +72,10 @@ ostream& operator<<(ostream &o, const Event& event)
     case Event::Tempo:
       o << "Tempo," << fixed << setprecision(1) << event.getBpm();
       break;
+    case Event::Meter:
+      o << "Meter," << static_cast<int>(event.param0) << "/"
+	<< static_cast<int>(event.param1);
+      break;
     default:
       o << static_cast<int>(event.type)
         << "," << static_cast<int>(event.param1)
@@ -443,7 +447,8 @@ TEST_CASE("Sequence", "[sequence]")
 TEST_CASE("MIDIFile", "[midifile]")
 {
   Sequence sequence;
-  char midi[] = "0:Tempo,100.0\n"
+  char midi[] = "0:Meter,4/4\n"
+		"0:Tempo,100.0\n"
                 "0:0:NoteOn,C4,20\n"
 		"100:0:NoteOff,C4\n"
 		"120:1:NoteOn,C#3,60\n"
@@ -460,6 +465,7 @@ TEST_CASE("MIDIFile", "[midifile]")
 		"820:0:NoteOff,F#4\n"
 		"840:1:NoteOn,G3,90\n"
 		"940:1:NoteOff,G3\n"
+		"1920:Meter,3/4\n"
 		"1920:Tempo,80.0\n";
 
   CFile file0 {"midi_0.mid"};
@@ -477,7 +483,35 @@ TEST_CASE("MIDIFile", "[midifile]")
   REQUIRE(traverse(sequence.getBuffer()) == midi);
 }
 
-TEST_CASE("Player", "[player]")
+TEST_CASE("Player Count", "[player]")
+{
+  Sequence sequence;
+  TestTiming timing;
+  TestMIDIPort midi_port;
+  Player player{sequence, timing, midi_port};
+  sequence.addEvent(Event{0, Event::Meter, 3, 4, 0});
+  sequence.returnToHead();
+
+  REQUIRE(player.getMeasure() == 0);
+  REQUIRE(player.getBeat() == 0);
+  REQUIRE(player.getMeterN() == 4);
+  REQUIRE(player.getMeterD() == 4);
+
+  player.tick();
+
+  REQUIRE(player.getMeterN() == 3);
+  REQUIRE(player.getMeterD() == 4);
+
+  for ( int i{0}; i < 23; i ++ ) player.tick();
+  REQUIRE(player.getBeat() == 1);
+  for ( int i{0}; i < 24; i ++ ) player.tick();
+  REQUIRE(player.getBeat() == 2);
+  for ( int i{0}; i < 24; i ++ ) player.tick();
+  REQUIRE(player.getBeat() == 0);
+  REQUIRE(player.getMeasure() == 1);
+}
+
+TEST_CASE("Player Play", "[player]")
 {
   Sequence sequence;
   TestTiming timing;
