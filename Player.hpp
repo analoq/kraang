@@ -26,7 +26,7 @@ private:
   uint32_t position;
   uint16_t measure;
   uint8_t beat;
-  uint8_t ticks_per_beat;
+  uint16_t ticks_per_beat;
   double bpm;
   uint8_t meter_n;
   uint8_t meter_d;
@@ -55,7 +55,6 @@ public:
     setMeter(4,4);
     measure = 0;
     beat = 0;
-    ticks_per_beat = sequence.getTicks();
   }
 
   const double getBpm() const
