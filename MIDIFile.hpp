@@ -142,10 +142,10 @@ public:
 		  switch ( type )
 		  {
 		    case 0x51:
-		      sequence.addEvent(0, Event{track_time, Event::Tempo, fp.readByte(), fp.readByte(), fp.readByte()});
+		      sequence.addEvent(TEMPO_TRACK, Event{track_time, Event::Tempo, fp.readByte(), fp.readByte(), fp.readByte()});
 		      break;
 		    case 0x58:
-		      sequence.addEvent(0, Event{track_time, Event::Meter, fp.readByte(),
+		      sequence.addEvent(TEMPO_TRACK, Event{track_time, Event::Meter, fp.readByte(),
 					      static_cast<uint8_t>(1 << fp.readByte()), fp.readByte()});
 		      fp.readByte(); // ignore # of 1/32nd notes per 24 MIDI clocks
 		      break;

@@ -6,7 +6,6 @@ using namespace std;
 #endif
 #include <stdint.h>
 #include <assert.h>
-#include <tuple>
 
 static const int16_t UNDEFINED {-1};
 
@@ -36,36 +35,44 @@ private:
   int16_t head[TRACKS];
   Node<T> buffer[SIZE];
 
-  std::tuple<int16_t,int16_t,bool> search(const uint8_t track, const T &data)
+  struct SearchResult
   {
-    int16_t last {UNDEFINED};
-    int16_t curr {pointer[track]};
-    bool go_right = data >= buffer[curr].data;
+    int16_t last;
+    int16_t curr;
+    bool go_right;
+  };
+
+  const SearchResult search(const uint8_t track, const T &data)
+  {
+    SearchResult result;
+    result.last = UNDEFINED;
+    result.curr = pointer[track];
+    result.go_right = data >= buffer[result.curr].data;
     while ( true )
     {
-      const T &current{buffer[curr].data};
-      if ( go_right )
+      const T &current{buffer[result.curr].data};
+      if ( result.go_right )
       {
 	if (data <= current )
 	  break;
       
-	if ( curr == UNDEFINED )
+	if ( result.curr == UNDEFINED )
 	  break;
-	last = curr;
-	curr = buffer[curr].next;
+	result.last = result.curr;
+	result.curr = buffer[result.curr].next;
       }
       else
       {
-	if ( data > current )
+	if ( data >= current )
 	  break;
 
-	if ( curr == UNDEFINED )
+	if ( result.curr == UNDEFINED )
 	  break;
-	last = curr;
-	curr = buffer[curr].prev;
+	result.last = result.curr;
+	result.curr = buffer[result.curr].prev;
       }
     }
-    return std::tuple<int16_t,int16_t,bool> {curr, last, go_right};
+    return result;
  }
 
 public:
@@ -103,6 +110,16 @@ public:
     return pointer[track] != UNDEFINED;
   }
 
+  bool hasEvents(const uint8_t track) const
+  {
+    return head[track] != UNDEFINED;
+  }
+
+  bool hasNext(const uint8_t track) const
+  {
+    return buffer[pointer[track]].next != UNDEFINED;
+  }
+
   void next(const uint8_t track)
   {
     Node<T> &current {buffer[pointer[track]]};
@@ -117,11 +134,11 @@ public:
 
   void seek(const uint8_t track, const T &data)
   {
-    std::tuple<int16_t,int16_t,bool> result {search(track, data)};
-    if ( std::get<0>(result) == UNDEFINED )
-      pointer[track] = std::get<1>(result);
+    SearchResult result {search(track, data)};
+    if ( result.curr == UNDEFINED )
+      pointer[track] = result.last;
     else
-      pointer[track] = std::get<0>(result);
+      pointer[track] = result.curr;
   }
 
   bool insert(const uint8_t track, const T &data)
@@ -141,10 +158,10 @@ public:
     }
     else
     {
-      std::tuple<int16_t,int16_t,bool> result {search(track, data)};
-      int16_t curr = std::get<0>(result);
-      int16_t last = std::get<1>(result);
-      bool go_right = std::get<2>(result);
+      SearchResult result {search(track, data)};
+      int16_t curr = result.curr;
+      int16_t last = result.last;
+      bool go_right = result.go_right;
 
       if ( go_right && curr == UNDEFINED )
       {

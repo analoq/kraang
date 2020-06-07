@@ -5,12 +5,51 @@
 
 static const int TRACKS = 2;
 static const int SIZE = 2048;
+static const int TEMPO_TRACK = 0;
+
+struct SeekResult
+{
+  uint32_t position;
+  double bpm;
+  uint8_t numerator;
+  uint8_t denominator;
+};
 
 class Sequence
 {
 private:
   Buffer<Event, SIZE, TRACKS> buffer;
   uint16_t ticks;
+
+  const SeekResult getPosition(const uint16_t measure)
+  {
+    buffer.returnToZero(TEMPO_TRACK);
+    uint16_t m {0};
+    SeekResult result;
+    result.position = 0;
+    result.numerator = 4;
+    result.denominator = 4;
+    result.bpm = 120.0;
+    while ( buffer.notUndefined(TEMPO_TRACK) )
+    {
+      const Event &event {buffer.get(TEMPO_TRACK)};
+      if ( event.type == Event::Meter )
+      {
+	result.position = event.position;
+	m += result.position * result.denominator / (result.numerator * ticks * 4);
+	result.numerator = event.param0;
+	result.denominator = event.param1;
+	if ( m >= measure )
+	  break;
+      }
+      else if ( event.type == Event::Tempo )
+	result.bpm = event.getBpm();
+      buffer.next(TEMPO_TRACK);
+    }
+    result.position += (measure - m)*result.numerator*ticks*4/result.denominator;
+    return result;
+  }
+
 public:
   Sequence()
   {
@@ -39,9 +78,12 @@ public:
       buffer.returnToZero(track);
   }
 
-  const bool hasEvent(uint8_t track) const
+  const SeekResult seek(const uint16_t measure)
   {
-    return buffer.notUndefined(track);
+    SeekResult result {getPosition(measure)};
+    for ( uint8_t track {0}; track < TRACKS; ++track )
+      buffer.seek(track, Event{result.position, Event::None, 0, 0, 0});
+    return result;
   }
 
   const Event& getEvent(uint8_t track) const
@@ -49,9 +91,19 @@ public:
     return buffer.get(track);
   }
 
-  void nextEvent(uint8_t track)
+  bool hasEvents(const uint8_t track)
   {
-    buffer.next(track);
+    return buffer.hasEvents(track);
+  }
+
+  bool nextEvent(const uint8_t track)
+  {
+    if ( buffer.hasNext(track) )
+    {
+      buffer.next(track);
+      return true;
+    }
+    return false;
   }
 
   void addEvent(const uint8_t track, const Event event)

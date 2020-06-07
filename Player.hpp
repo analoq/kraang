@@ -34,6 +34,7 @@ private:
   Sequence &sequence;
   MIDIPort &midi_port;
   Timing &timing;
+  bool events_remain;
 
   void setBpm(double b)
   {
@@ -55,6 +56,7 @@ public:
     setMeter(4,4);
     measure = 0;
     beat = 0;
+    events_remain = true;
   }
 
   const double getBpm() const
@@ -82,34 +84,59 @@ public:
     return beat;
   }
 
+  void seek(uint16_t m)
+  {
+    SeekResult result {sequence.seek(m)};
+    position = result.position;
+    measure = m;
+    beat = 0;
+    events_remain = true;
+    setBpm(result.bpm);
+    setMeter(result.numerator, result.denominator);
+  }
+
   bool tick()
   {
+    uint32_t start {timing.getMicroseconds()};
     // tempo track
-    for ( ; sequence.hasEvent(0); sequence.nextEvent(0) )
+    if ( sequence.hasEvents(TEMPO_TRACK) )
     {
-      const Event &event = sequence.getEvent(0);
-      if ( event.position > position )
-	break;
-      switch ( event.type )
+      while ( true )
       {
-	case Event::Tempo:
-	  setBpm(event.getBpm());
+	const Event &event = sequence.getEvent(TEMPO_TRACK);
+	if ( event.position > position )
 	  break;
-	case Event::Meter:
-	  setMeter(event.param0, event.param1);
-	  break;
-	default:
+	switch ( event.type )
+	{
+	  case Event::Tempo:
+	    setBpm(event.getBpm());
+	    break;
+	  case Event::Meter:
+	    setMeter(event.param0, event.param1);
+	    break;
+	  default:
+	    break;
+	}
+	if ( !sequence.nextEvent(TEMPO_TRACK) )
 	  break;
       }
     }
  
     // music track
-    for ( ; sequence.hasEvent(1); sequence.nextEvent(1) )
+    if ( sequence.hasEvents(1) && events_remain )
     {
-      const Event &event = sequence.getEvent(1);
-      if ( event.position > position )
-	break;
-      midi_port.send(event);
+      while ( true )
+      {
+	const Event &event = sequence.getEvent(1);
+	if ( event.position > position )
+	  break;
+	midi_port.send(event);
+	if ( !sequence.nextEvent(1) )
+	{
+	  events_remain = false;
+	  break;
+	}
+      }
     }
 
     position += 1;
@@ -122,12 +149,10 @@ public:
         measure ++;
       }
     }
-    bool hasEvent {sequence.hasEvent(1)};
 
-    uint32_t start {timing.getMicroseconds()};
     while ( timing.getMicroseconds() - start < delay )
       timing.delay(10);
-    return hasEvent;
+    return events_remain;
   }
 };
 #endif

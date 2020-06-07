@@ -128,6 +128,11 @@ public:
     time = t;
   }
 
+  void clear()
+  {
+    log.str("");
+  }
+
   string getLog() const
   {
     return log.str();
@@ -388,6 +393,35 @@ TEST_CASE("Sequence", "[sequence]")
 					    "35:5:NoteOff,E4\n");
 }
 
+TEST_CASE("Sequence Seek", "[sequence]")
+{
+  Sequence sequence;
+  SeekResult result;
+  result = sequence.seek(4);
+  REQUIRE(result.position == 24*4*4);
+  REQUIRE(result.numerator == 4);
+  REQUIRE(result.denominator == 4);
+  sequence.addEvent(0, Event{0, Event::Meter, 3, 4, 0});
+  sequence.addEvent(0, Event{24*3, Event::Meter, 4, 4, 0});
+  sequence.addEvent(0, Event{24*7, Event::Meter, 6, 8, 0});
+  result = sequence.seek(0);
+  REQUIRE(result.position == 0);
+  REQUIRE(result.numerator == 3);
+  REQUIRE(result.denominator == 4);
+  result = sequence.seek(1);
+  REQUIRE(result.position == 24*3);
+  REQUIRE(result.numerator == 4);
+  REQUIRE(result.denominator == 4);
+  result = sequence.seek(2);
+  REQUIRE(result.position == 24*7);
+  REQUIRE(result.numerator == 6);
+  REQUIRE(result.denominator == 8);
+  result = sequence.seek(3);
+  REQUIRE(result.position == 24*10);
+  REQUIRE(result.numerator == 6);
+  REQUIRE(result.denominator == 8);
+}
+
 TEST_CASE("MIDIFile", "[midifile]")
 {
   Sequence sequence;
@@ -410,7 +444,13 @@ TEST_CASE("MIDIFile", "[midifile]")
 		"720:0:NoteOn,F#4,50\n"
 		"820:0:NoteOff,F#4\n"
 		"840:1:NoteOn,G3,90\n"
-		"940:1:NoteOff,G3\n";
+		"940:1:NoteOff,G3\n"
+	        "1920:0:NoteOn,C4,100\n"
+		"2160:0:NoteOff,C4\n"
+		"2400:0:NoteOn,C#4,100\n"
+		"2640:0:NoteOff,C#4\n"
+		"2880:0:NoteOn,D4,100\n"
+		"3120:0:NoteOff,D4\n";
 
   CFile file0 {"midi_0.mid"};
   REQUIRE(file0.isValid());
@@ -436,6 +476,7 @@ TEST_CASE("Player Count", "[player]")
   TestMIDIPort midi_port;
   Player player{sequence, timing, midi_port};
   sequence.addEvent(0, Event{0, Event::Meter, 3, 4, 0});
+  sequence.addEvent(0, Event{24*3, Event::Meter, 6, 8, 0});
   sequence.returnToZero();
 
   REQUIRE(player.getMeasure() == 0);
@@ -455,6 +496,9 @@ TEST_CASE("Player Count", "[player]")
   for ( int i{0}; i < 24; i ++ ) player.tick();
   REQUIRE(player.getBeat() == 0);
   REQUIRE(player.getMeasure() == 1);
+  for ( int i{0}; i < 24; i ++ ) player.tick();
+  REQUIRE(player.getBeat() == 2);
+  REQUIRE(player.getMeasure() == 1);
 }
 
 TEST_CASE("Player Play", "[player]")
@@ -467,7 +511,7 @@ TEST_CASE("Player Play", "[player]")
   MIDIFile midi_file{file};
   midi_file.import(sequence);
   Player player{sequence, timing, midi_port};
-  for ( int i{0}; i < 480*4; i ++ )
+  for ( int i{0}; i < 480*7; i ++ )
   {
     midi_port.setTime(timing.getMicroseconds());
     player.tick();
@@ -487,6 +531,33 @@ TEST_CASE("Player Play", "[player]")
 		  "900000:720:0:NoteOn,F#4,50\n"
 		  "1025000:820:0:NoteOff,F#4\n"
 		  "1050000:840:1:NoteOn,G3,90\n"
-		  "1175000:940:1:NoteOff,G3\n";
+		  "1175000:940:1:NoteOff,G3\n"
+		  "2400000:1920:0:NoteOn,C4,100\n"
+		  "2776800:2160:0:NoteOff,C4\n"
+		  "3153600:2400:0:NoteOn,C#4,100\n"
+		  "3530400:2640:0:NoteOff,C#4\n"
+		  "3907200:2880:0:NoteOn,D4,100\n"
+		  "4284000:3120:0:NoteOff,D4\n";
   REQUIRE(midi_port.getLog() == result);
+
+  midi_port.clear();
+  player.seek(1);
+  REQUIRE(player.getMeasure() == 1);
+  REQUIRE(player.getBeat() == 0);
+  REQUIRE(player.getMeterN() == 3);
+  REQUIRE(player.getMeterD() == 4);
+  REQUIRE(static_cast<int>(player.getBpm()) == 80);
+  for ( int i{0}; i < 480*3; i ++ )
+  {
+    midi_port.setTime(timing.getMicroseconds());
+    player.tick();
+  }
+ 
+  char seekrs[] = "4660800:1920:0:NoteOn,C4,100\n"
+		  "5037600:2160:0:NoteOff,C4\n"
+		  "5414400:2400:0:NoteOn,C#4,100\n"
+		  "5791200:2640:0:NoteOff,C#4\n"
+		  "6168000:2880:0:NoteOn,D4,100\n"
+		  "6544800:3120:0:NoteOff,D4\n";
+  REQUIRE(midi_port.getLog() == seekrs); 
 }
