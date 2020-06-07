@@ -1,11 +1,8 @@
-/*
-  process launch -- -b
-  breakpoint set --file EventBuffer.hpp --line 58
-*/
 #define CATCH_CONFIG_MAIN
 #include <iostream>
 #include "catch.hpp"
 #include "../Buffer.hpp"
+#include "../Event.hpp"
 #include "../Sequence.hpp"
 #include "../MIDIFile.hpp"
 #include "../Player.hpp"
@@ -26,14 +23,19 @@ public:
   {
   }
 
-  bool operator <(const TestNode &a) const
+  bool operator <=(const TestNode &a) const
   {
-    return value < a.value;
+    return value <= a.value;
   }
 
-  bool operator ==(const TestNode &a) const
+  bool operator >(const TestNode &a) const
   {
-    return value == a.value;
+    return value > a.value;
+  }
+
+  bool operator >=(const TestNode &a) const
+  {
+    return value >= a.value;
   }
 };
 
@@ -85,15 +87,6 @@ ostream& operator<<(ostream &o, const Event& event)
   return o;
 }
 
-template<class T, uint16_t N>
-string traverse(Buffer<T,N> &buffer)
-{
-  stringstream result;
-  for ( const T &node : buffer )
-    result << node;
-  return result.str();
-}
-
 class TestTiming : public Timing
 {
 private:
@@ -141,276 +134,226 @@ public:
   }
 };
 
-
 TEST_CASE("New buffer is empty", "[buffer]")
 {
-  Buffer<TestNode, 2> buffer;
+  Buffer<TestNode, 3, 1> buffer;
+  REQUIRE(buffer.getHead(0) == UNDEFINED);
   REQUIRE(buffer.getAvailable() == 0);
-  REQUIRE(buffer.getHead() == -1);
-  REQUIRE(buffer.getTail() == -1);
-  REQUIRE(buffer.dump() == "-1:1:? -1:-1:? ");
-  REQUIRE(traverse(buffer) == "");
+  REQUIRE(buffer.dump() == "u:1:? u:2:? u:u:? ");
+  REQUIRE(buffer.traverse(0) == "");
 }
 
-TEST_CASE("Buffer out of range", "[buffer]")
+TEST_CASE("Insert One Track", "[buffer]")
 {
-  Buffer<TestNode, 4> buffer;
-  REQUIRE(buffer.insert(4,TestNode('A')) == -1);
-  REQUIRE(buffer.remove(4) == false);
+  Buffer<TestNode, 5, 1> buffer;
+  buffer.insert(0, TestNode('C'));
+  REQUIRE(buffer.getAvailable() == 1);
+  REQUIRE(buffer.dump() == "u:u:C u:2:? u:3:? u:4:? u:u:? ");
+  REQUIRE(buffer.getHead(0) == 0);
+  REQUIRE(buffer.getPointer(0) == 0);
+  REQUIRE(buffer.traverse(0) == "C");
+
+  buffer.insert(0, TestNode('C'));
+  REQUIRE(buffer.getAvailable() == 2);
+  REQUIRE(buffer.dump() == "1:u:C u:0:C u:3:? u:4:? u:u:? ");
+  REQUIRE(buffer.getHead(0) == 1);
+  REQUIRE(buffer.getPointer(0) == 0);
+  REQUIRE(buffer.traverse(0) == "CC");
+
+  buffer.insert(0, TestNode('D'));
+  REQUIRE(buffer.getAvailable() == 3);
+  REQUIRE(buffer.dump() == "1:2:C u:0:C 0:u:D u:4:? u:u:? ");
+  REQUIRE(buffer.getHead(0) == 1);
+  REQUIRE(buffer.getPointer(0) == 2);
+  REQUIRE(buffer.traverse(0) == "CCD");
+
+  buffer.insert(0, TestNode('A'));
+  REQUIRE(buffer.getAvailable() == 4);
+  REQUIRE(buffer.dump() == "1:2:C 3:0:C 0:u:D u:1:A u:u:? ");
+  REQUIRE(buffer.getHead(0) == 3);
+  REQUIRE(buffer.getPointer(0) == 2);
+  REQUIRE(buffer.traverse(0) == "ACCD");
+
+  buffer.insert(0, TestNode('B'));
+  REQUIRE(buffer.getAvailable() == UNDEFINED);
+  REQUIRE(buffer.dump() == "1:2:C 4:0:C 0:u:D u:4:A 3:1:B ");
+  REQUIRE(buffer.getHead(0) == 3);
+  REQUIRE(buffer.getPointer(0) == 2);
+  REQUIRE(buffer.traverse(0) == "ABCCD");
 }
 
 TEST_CASE("Buffer full", "[buffer]")
 {
-  Buffer<TestNode,4> buffer;
-  buffer.insert(0,TestNode('A'));
-  buffer.insert(0,TestNode('B'));
-  buffer.insert(0,TestNode('C'));
-  buffer.insert(0,TestNode('D'));
-  REQUIRE(buffer.insert(0,TestNode(5)) == -1);
+  Buffer<TestNode,4, 1> buffer;
+  REQUIRE(buffer.insert(0, TestNode('A')) == true);
+  REQUIRE(buffer.insert(0, TestNode('B')) == true);
+  REQUIRE(buffer.insert(0, TestNode('C')) == true);
+  REQUIRE(buffer.insert(0, TestNode('D')) == true);
+  REQUIRE(buffer.insert(0, TestNode(5)) == false);
 }
 
 TEST_CASE("Buffer clear", "[buffer]")
 {
-  Buffer<TestNode,4> buffer;
+  Buffer<TestNode,4, 1> buffer;
   buffer.insert(0,TestNode('A'));
   buffer.insert(0,TestNode('B'));
   buffer.insert(0,TestNode('C'));
   buffer.insert(0,TestNode('D'));
   buffer.clear();
-  REQUIRE(buffer.getAvailable() == 0);
-  REQUIRE(buffer.getHead() == -1);
-  REQUIRE(buffer.getTail() == -1);
-  REQUIRE(traverse(buffer) == "");
-  REQUIRE(buffer.dump() == "-1:1:? -1:2:? -1:3:? -1:-1:? ");
+  REQUIRE(buffer.getHead(0) == UNDEFINED);
+  REQUIRE(buffer.getPointer(0) ==  UNDEFINED);
+  REQUIRE(buffer.dump() == "u:1:? u:2:? u:3:? u:u:? ");
+  REQUIRE(buffer.traverse(0) == "");
 }
 
-
-TEST_CASE("Buffer insertions", "[buffer]")
+TEST_CASE("Insert Two Track", "[buffer]")
 {
-  Buffer<TestNode, 4> buffer;
-  // insert to empty list
-  REQUIRE(buffer.insert(0,TestNode('A')) == 0);
-  REQUIRE(buffer.getHead() == 0);
-  REQUIRE(buffer.getAvailable() == 1);
-  REQUIRE(buffer.getTail() == 0);
-  REQUIRE(buffer.dump() == "-1:-1:A -1:2:? -1:3:? -1:-1:? ");
-  REQUIRE(traverse(buffer) == "A");
-  // insert at head
-  REQUIRE(buffer.insert(0,TestNode('B')) == 1);
-  REQUIRE(buffer.getAvailable() == 2);
-  REQUIRE(buffer.getHead() == 1);
-  REQUIRE(buffer.getTail() == 0);
-  REQUIRE(buffer.dump() == "1:-1:A -1:0:B -1:3:? -1:-1:? ");
-  REQUIRE(traverse(buffer) == "BA");
-  // insert at tail
-  REQUIRE(buffer.insert(0,TestNode('C')) == 2);
-  REQUIRE(buffer.getAvailable() == 3);
-  REQUIRE(buffer.getHead() == 1);
-  REQUIRE(buffer.getTail() == 0);
-  REQUIRE(buffer.dump() == "2:-1:A -1:2:B 1:0:C -1:-1:? ");
-  REQUIRE(traverse(buffer) == "BCA");
-  // insert at end
-  REQUIRE(buffer.insert(3,TestNode('D')) == 3);
-  REQUIRE(buffer.getAvailable() == -1);
-  REQUIRE(buffer.getHead() == 1);
-  REQUIRE(buffer.getTail() == 3);
-  REQUIRE(buffer.dump() == "2:3:A -1:2:B 1:0:C 0:-1:D ");
-  REQUIRE(traverse(buffer) == "BCAD");
+  Buffer<TestNode, 3, 2> buffer;
+  buffer.insert(0, TestNode('A'));
+  buffer.insert(1, TestNode('C'));
+  REQUIRE(buffer.dump() == "u:u:A u:u:C u:u:? ");
+  REQUIRE(buffer.getHead(0) == 0);
+  REQUIRE(buffer.getHead(1) == 1);
+  REQUIRE(buffer.getPointer(0) == 0);
+  REQUIRE(buffer.getPointer(1) == 1);
+  REQUIRE(buffer.traverse(0) == "A");
+  REQUIRE(buffer.traverse(1) == "C");
+
+  buffer.insert(1, TestNode('B'));
+  REQUIRE(buffer.dump() == "u:u:A 2:u:C u:1:B ");
+  REQUIRE(buffer.getHead(0) == 0);
+  REQUIRE(buffer.getHead(1) == 2);
+  REQUIRE(buffer.getPointer(0) == 0);
+  REQUIRE(buffer.getPointer(1) == 1);
+  REQUIRE(buffer.traverse(0) == "A");
+  REQUIRE(buffer.traverse(1) == "BC");
 }
 
 
 TEST_CASE("Buffer deletions", "[buffer]")
 {
-  Buffer<TestNode, 4> buffer;
+  Buffer<TestNode, 4, 1> buffer;
   buffer.insert(0,TestNode('A'));
   buffer.insert(0,TestNode('B'));
   buffer.insert(0,TestNode('C'));
-  buffer.insert(3,TestNode('D'));
-  // "2:3:A -1:2:B 1:0:C 0:-1:D  BCAD
+  buffer.insert(0,TestNode('D'));
+  // "u:1:A 0:2:B 1:3:C 2:u:D "  ABCD
   
   // delete from head
-  REQUIRE(buffer.remove(1) == true);
-  REQUIRE(buffer.getAvailable() == 1);
-  REQUIRE(buffer.getHead() == 2);
-  REQUIRE(buffer.getTail() == 3);
-  REQUIRE(traverse(buffer) == "CAD");
-  REQUIRE(buffer.dump() == "2:3:A -1:-1:? -1:0:C 0:-1:D ");
+  buffer.setPointer(0, 0);
+  buffer.remove(0);
+  REQUIRE(buffer.getHead(0) == 1);
+  REQUIRE(buffer.getPointer(0) == 1);
+  REQUIRE(buffer.dump() == "u:u:? u:2:B 1:3:C 2:u:D ");
+  REQUIRE(buffer.traverse(0) == "BCD");
 
   buffer.clear();
   buffer.insert(0,TestNode('A'));
   buffer.insert(0,TestNode('B'));
   buffer.insert(0,TestNode('C'));
-  buffer.insert(3,TestNode('D'));
+  buffer.insert(0,TestNode('D'));
 
   // delete from middle
-  REQUIRE(buffer.remove(0) == true);
-  REQUIRE(buffer.getAvailable() == 0);
-  REQUIRE(buffer.getHead() == 1);
-  REQUIRE(buffer.getTail() == 3);
-  REQUIRE(traverse(buffer) == "BCD");
-  REQUIRE(buffer.dump() == "-1:-1:? -1:2:B 1:3:C 2:-1:D ");
+  buffer.setPointer(0, 1);
+  buffer.remove(0);
+  REQUIRE(buffer.getHead(0) == 0);
+  REQUIRE(buffer.getPointer(0) == 2);
+  REQUIRE(buffer.dump() == "u:2:A u:u:? 0:3:C 2:u:D ");
+  REQUIRE(buffer.traverse(0) == "ACD");
 
   buffer.clear();
   buffer.insert(0,TestNode('A'));
   buffer.insert(0,TestNode('B'));
   buffer.insert(0,TestNode('C'));
-  buffer.insert(3,TestNode('D'));
+  buffer.insert(0,TestNode('D'));
 
   // delete from end
-  REQUIRE(buffer.remove(3) == true);
-  REQUIRE(buffer.getAvailable() == 3);
-  REQUIRE(buffer.getHead() == 1);
-  REQUIRE(buffer.getTail() == 0);
-  REQUIRE(traverse(buffer) == "BCA");
-  REQUIRE(buffer.dump() == "2:-1:A -1:2:B 1:0:C -1:-1:? ");
-
-  // delete deleted
-  REQUIRE(buffer.remove(3) == true);
-  REQUIRE(buffer.getAvailable() == 3);
-  REQUIRE(buffer.getHead() == 1);
-  REQUIRE(buffer.getTail() == 0);
-  REQUIRE(traverse(buffer) == "BCA");
-  //REQUIRE(buffer.dump() == "2:-1:A -1:2:B 1:0:C -1:3:? ");
+  buffer.setPointer(0, 3);
+  buffer.remove(0);
+  REQUIRE(buffer.getHead(0) == 0);
+  REQUIRE(buffer.getPointer(0) == 2);
+  REQUIRE(buffer.dump() == "u:1:A 0:2:B 1:u:C u:u:? ");
+  REQUIRE(buffer.traverse(0) == "ABC");
 }
 
 TEST_CASE("Buffer deletion/insertion", "[buffer]")
 {
-  Buffer<TestNode, 5> buffer;
+  Buffer<TestNode, 5, 1> buffer;
   // add only element
-  buffer.insert(TestNode('A'));
+  buffer.insert(0, TestNode('A'));
   REQUIRE(buffer.getAvailable() == 1);
-  REQUIRE(buffer.getHead() == 0);
-  REQUIRE(buffer.getTail() == 0);
-  REQUIRE(traverse(buffer) == "A");
+  REQUIRE(buffer.getHead(0) == 0);
+  REQUIRE(buffer.traverse(0) == "A");
   
   // delete only element
-  REQUIRE(buffer.remove(0) == true);
+  buffer.remove(0);
   REQUIRE(buffer.getAvailable() == 0);
-  REQUIRE(buffer.getHead() == -1);
-  REQUIRE(buffer.getTail() == -1);
-  REQUIRE(traverse(buffer) == "");
+  REQUIRE(buffer.getHead(0) == UNDEFINED);
+  REQUIRE(buffer.dump() == "u:1:? u:2:? u:3:? u:4:? u:u:? ");
+  REQUIRE(buffer.traverse(0) == "");
 
   buffer.clear();
   buffer.insert(0,TestNode('A'));
   buffer.insert(0,TestNode('B'));
   buffer.insert(0,TestNode('C'));
-  buffer.insert(3,TestNode('D'));
+  buffer.insert(0,TestNode('D'));
 
   REQUIRE(buffer.getAvailable() == 4);
-  REQUIRE(buffer.getHead() == 1);
-  REQUIRE(buffer.getTail() == 3);
-  REQUIRE(traverse(buffer) == "BCAD");
-  REQUIRE(buffer.dump() == "2:3:A -1:2:B 1:0:C 0:-1:D -1:-1:? ");
+  REQUIRE(buffer.getHead(0) == 0);
+  REQUIRE(buffer.dump() == "u:1:A 0:2:B 1:3:C 2:u:D u:u:? ");
+  REQUIRE(buffer.traverse(0) == "ABCD");
 
   // delete an element
-  REQUIRE(buffer.remove(0) == true);
+  buffer.setPointer(0, 0);
+  buffer.remove(0);
   REQUIRE(buffer.getAvailable() == 0);
-  REQUIRE(buffer.getHead() == 1);
-  REQUIRE(buffer.getTail() == 3);
-  REQUIRE(traverse(buffer) == "BCD");
-  REQUIRE(buffer.dump() == "-1:4:? -1:2:B 1:3:C 2:-1:D -1:-1:? ");
+  REQUIRE(buffer.getHead(0) == 1);
+  REQUIRE(buffer.dump() == "u:4:? u:2:B 1:3:C 2:u:D u:u:? ");
+  REQUIRE(buffer.traverse(0) == "BCD");
+
 
   // insert an element
-  REQUIRE(buffer.insert(TestNode('E')) == 0);
+  buffer.insert(0, TestNode('E'));
   REQUIRE(buffer.getAvailable() == 4);
-  REQUIRE(buffer.getHead() == 1);
-  REQUIRE(buffer.getTail() == 0);
-  REQUIRE(traverse(buffer) == "BCDE");
-  REQUIRE(buffer.dump() == "3:-1:E -1:2:B 1:3:C 2:0:D -1:-1:? ");
+  REQUIRE(buffer.getHead(0) == 1);
+  REQUIRE(buffer.dump() == "3:u:E u:2:B 1:3:C 2:0:D u:u:? ");
+  REQUIRE(buffer.traverse(0) == "BCDE");
 
   // insert last element
-  REQUIRE(buffer.insert(TestNode('F')) == 4);
-  REQUIRE(buffer.getAvailable() == -1);
-  REQUIRE(buffer.getHead() == 1);
-  REQUIRE(buffer.getTail() == 4);
-  REQUIRE(traverse(buffer) == "BCDEF");
-  REQUIRE(buffer.dump() == "3:4:E -1:2:B 1:3:C 2:0:D 0:-1:F ");
+  buffer.insert(0, TestNode('F'));
+  REQUIRE(buffer.getAvailable() == UNDEFINED);
+  REQUIRE(buffer.getHead(0) == 1);
+  REQUIRE(buffer.dump() == "3:4:E u:2:B 1:3:C 2:0:D 0:u:F ");
+  REQUIRE(buffer.traverse(0) == "BCDEF");
 }
 
-TEST_CASE("Compare", "[test]")
-{
-  REQUIRE((TestNode('A') < TestNode('B')) == true);
-  REQUIRE((TestNode('B') < TestNode('A')) == false);
-}
 
-TEST_CASE("Buffer insert sorted", "[buffer]")
+TEST_CASE("Seek", "[buffer]")
 {
-  Buffer<TestNode, 7> buffer;
-  REQUIRE(buffer.insert_sorted(TestNode('E')) == 0);
-  REQUIRE(buffer.insert_sorted(TestNode('C')) == 1);
-  REQUIRE(buffer.insert_sorted(TestNode('A')) == 2);
-  REQUIRE(traverse(buffer) == "ACE");
-
-  REQUIRE(buffer.insert_sorted(TestNode('B')) == 3);
-  REQUIRE(buffer.insert_sorted(3, TestNode('C')) == 4);
-  REQUIRE(buffer.insert_sorted(4, TestNode('D')) == 5);
-  REQUIRE(buffer.insert_sorted(5, TestNode('F')) == 6);
-  REQUIRE(traverse(buffer) == "ABCCDEF");
-}
-
-TEST_CASE("Swap", "[buffer]")
-{
-  Buffer<TestNode, 5> buffer;
-  buffer.insert(0,TestNode('A'));
+  Buffer<TestNode, 4, 1> buffer;
   buffer.insert(0,TestNode('B'));
-  buffer.insert(0,TestNode('C'));
-  buffer.insert(3,TestNode('D'));
-  // "2:3:A -1:2:B 1:0:C 0:-1:D -1:-1:? BCAD
- 
-  buffer.doSwap(0,1);
-  REQUIRE(buffer.getAvailable() == 4);
-  REQUIRE(buffer.getHead() == 0);
-  REQUIRE(buffer.dump() == "-1:2:B 2:3:A 0:1:C 1:-1:D -1:-1:? ");
-  REQUIRE(traverse(buffer) == "BCAD");
+  buffer.insert(0,TestNode('D'));
+  buffer.insert(0,TestNode('E'));
+  buffer.insert(0,TestNode('F'));
 
-  buffer.doSwap(1,2);
-  REQUIRE(buffer.getHead() == 0);
-  REQUIRE(buffer.dump() == "-1:1:B 0:2:C 1:3:A 2:-1:D -1:-1:? ");
-  REQUIRE(traverse(buffer) == "BCAD");
-}
-
-TEST_CASE("Sort", "[buffer]")
-{
-  Buffer<TestNode, 4> buffer;
-  buffer.insert(0,TestNode('A'));
-  buffer.insert(0,TestNode('B'));
-  buffer.insert(0,TestNode('C'));
-  buffer.insert(3,TestNode('D'));
-  // "2:3:A -1:2:B 1:0:C 0:-1:D  BCAD
-
-  buffer.sort();
-  REQUIRE(buffer.getAvailable() == -1);
-  REQUIRE(buffer.getHead() == 0);
-  REQUIRE(buffer.getTail() == 3);
-  REQUIRE(traverse(buffer) == "BCAD");
-  REQUIRE(buffer.dump() == "-1:1:B 0:2:C 1:3:A 2:-1:D ");
-}
-
-TEST_CASE("Search", "[buffer]")
-{
-  Buffer<TestNode, 4> buffer;
-  buffer.insert(TestNode('B'));
-  buffer.insert(TestNode('D'));
-  buffer.insert(TestNode('E'));
-  buffer.insert(TestNode('F'));
-
-  REQUIRE(buffer.getHead() == 0);
-  REQUIRE(buffer.getTail() == 3);
-  REQUIRE(traverse(buffer) == "BDEF");
-  // can't find if unsorted
-  REQUIRE(buffer.search(TestNode('B')) == -1);
-  // find A
-  buffer.sort();
-  REQUIRE(buffer.getHead() == 0);
-  REQUIRE(buffer.getTail() == 3);
-  REQUIRE(traverse(buffer) == "BDEF");
-  REQUIRE(buffer.search(TestNode('A')) == 0);
-  REQUIRE(buffer.search(TestNode('B')) == 0);
-  REQUIRE(buffer.search(TestNode('C')) == 1);
-  REQUIRE(buffer.search(TestNode('D')) == 1);
-  REQUIRE(buffer.search(TestNode('E')) == 2);
-  REQUIRE(buffer.search(TestNode('F')) == 3);
-  REQUIRE(buffer.search(TestNode('G')) == 3);
+  REQUIRE(buffer.getHead(0) == 0);
+  REQUIRE(buffer.getPointer(0) == 3);
+  REQUIRE(buffer.traverse(0) == "BDEF");
+  
+  buffer.seek(0,TestNode('A'));
+  REQUIRE(buffer.get(0).value == 'B');
+  buffer.seek(0,TestNode('B'));
+  REQUIRE(buffer.get(0).value == 'B');
+  buffer.seek(0,TestNode('C'));
+  REQUIRE(buffer.get(0).value == 'D');
+  buffer.seek(0,TestNode('D'));
+  REQUIRE(buffer.get(0).value == 'D');
+  buffer.seek(0,TestNode('E'));
+  REQUIRE(buffer.get(0).value == 'E');
+  buffer.seek(0,TestNode('F'));
+  REQUIRE(buffer.get(0).value == 'F');
+  buffer.seek(0,TestNode('G'));
+  REQUIRE(buffer.get(0).value == 'F');
 }
 
 TEST_CASE("Event", "[event]")
@@ -424,20 +367,21 @@ TEST_CASE("Event", "[event]")
   REQUIRE(event.param1 == 3);
   REQUIRE(event.param2 == 4);
 
-  REQUIRE(event < Event{2,Event::NoteOn,2,3,4});
-  REQUIRE(event == Event{1,Event::NoteOff,5,6,7});
+  REQUIRE(event > Event{0,Event::NoteOn,2,3,4});
+  REQUIRE(event >= Event{1,Event::NoteOff,5,6,7});
+  REQUIRE(event <= Event{2,Event::NoteOff,5,6,7});
 }
 
 TEST_CASE("Sequence", "[sequence]")
 {
   Sequence sequence;
-  sequence.addEvent(Event{10, Event::NoteOn, 1, 60, 1});
-  sequence.addEvent(Event{20, Event::NoteOff, 2, 62, 2});
-  sequence.addEvent(Event{30, Event::NoteOn, 3, 63, 3});
+  sequence.addEvent(1, Event{10, Event::NoteOn, 1, 60, 1});
+  sequence.addEvent(1, Event{20, Event::NoteOff, 2, 62, 2});
+  sequence.addEvent(1, Event{30, Event::NoteOn, 3, 63, 3});
   sequence.returnToZero();
-  sequence.addEvent(Event{15, Event::NoteOn, 4, 61, 4});
-  sequence.addEvent(Event{35, Event::NoteOff, 5, 64, 5});
-  REQUIRE(traverse(sequence.getBuffer()) == "10:1:NoteOn,C4,1\n"
+  sequence.addEvent(1, Event{15, Event::NoteOn, 4, 61, 4});
+  sequence.addEvent(1, Event{35, Event::NoteOff, 5, 64, 5});
+  REQUIRE(sequence.getBuffer().traverse(1) == "10:1:NoteOn,C4,1\n"
                                             "15:4:NoteOn,C#4,4\n"
 					    "20:2:NoteOff,D4\n"
                                             "30:3:NoteOn,D#4,3\n"
@@ -447,9 +391,11 @@ TEST_CASE("Sequence", "[sequence]")
 TEST_CASE("MIDIFile", "[midifile]")
 {
   Sequence sequence;
-  char midi[] = "0:Meter,4/4\n"
-		"0:Tempo,100.0\n"
-                "0:0:NoteOn,C4,20\n"
+  char trk0[] = "0:Tempo,100.0\n"
+		"0:Meter,4/4\n"
+		"1920:Tempo,80.0\n"
+		"1920:Meter,3/4\n";
+  char trk1[] = "0:0:NoteOn,C4,20\n"
 		"100:0:NoteOff,C4\n"
 		"120:1:NoteOn,C#3,60\n"
 		"220:1:NoteOff,C#3\n"
@@ -464,23 +410,23 @@ TEST_CASE("MIDIFile", "[midifile]")
 		"720:0:NoteOn,F#4,50\n"
 		"820:0:NoteOff,F#4\n"
 		"840:1:NoteOn,G3,90\n"
-		"940:1:NoteOff,G3\n"
-		"1920:Meter,3/4\n"
-		"1920:Tempo,80.0\n";
+		"940:1:NoteOff,G3\n";
 
   CFile file0 {"midi_0.mid"};
   REQUIRE(file0.isValid());
   MIDIFile midi_file0{file0};
   REQUIRE(midi_file0.import(sequence) == 0);
   REQUIRE(sequence.getTicks() == 480);
-  REQUIRE(traverse(sequence.getBuffer()) == midi);
+  REQUIRE(sequence.getBuffer().traverse(0) == trk0);
+  REQUIRE(sequence.getBuffer().traverse(1) == trk1);
 
   CFile file1 {"midi_1.mid"};
   REQUIRE(file1.isValid());
   MIDIFile midi_file1{file1};
   REQUIRE(midi_file1.import(sequence) == 0);
   REQUIRE(sequence.getTicks() == 480);
-  REQUIRE(traverse(sequence.getBuffer()) == midi);
+  REQUIRE(sequence.getBuffer().traverse(0) == trk0);
+  REQUIRE(sequence.getBuffer().traverse(1) == trk1);
 }
 
 TEST_CASE("Player Count", "[player]")
@@ -489,8 +435,8 @@ TEST_CASE("Player Count", "[player]")
   TestTiming timing;
   TestMIDIPort midi_port;
   Player player{sequence, timing, midi_port};
-  sequence.addEvent(Event{0, Event::Meter, 3, 4, 0});
-  sequence.returnToHead();
+  sequence.addEvent(0, Event{0, Event::Meter, 3, 4, 0});
+  sequence.returnToZero();
 
   REQUIRE(player.getMeasure() == 0);
   REQUIRE(player.getBeat() == 0);

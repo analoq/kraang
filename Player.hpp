@@ -84,9 +84,10 @@ public:
 
   bool tick()
   {
-    for ( ; sequence.hasEvent(); sequence.nextEvent())
+    // tempo track
+    for ( ; sequence.hasEvent(0); sequence.nextEvent(0) )
     {
-      const Event event = sequence.getEvent();
+      const Event &event = sequence.getEvent(0);
       if ( event.position > position )
 	break;
       switch ( event.type )
@@ -98,9 +99,19 @@ public:
 	  setMeter(event.param0, event.param1);
 	  break;
 	default:
-	  midi_port.send(event);
+	  break;
       }
     }
+ 
+    // music track
+    for ( ; sequence.hasEvent(1); sequence.nextEvent(1) )
+    {
+      const Event &event = sequence.getEvent(1);
+      if ( event.position > position )
+	break;
+      midi_port.send(event);
+    }
+
     position += 1;
     if ( position % ticks_per_beat == 0 )
     {
@@ -111,7 +122,7 @@ public:
         measure ++;
       }
     }
-    bool hasEvent {sequence.hasEvent()};
+    bool hasEvent {sequence.hasEvent(1)};
 
     uint32_t start {timing.getMicroseconds()};
     while ( timing.getMicroseconds() - start < delay )

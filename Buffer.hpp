@@ -6,6 +6,7 @@ using namespace std;
 #endif
 #include <stdint.h>
 #include <assert.h>
+#include <tuple>
 
 static const int16_t UNDEFINED {-1};
 
@@ -26,58 +27,46 @@ public:
   }
 };
 
-template<class T, uint16_t SIZE>
+template<class T, uint16_t SIZE, uint8_t TRACKS>
 class Buffer
 {
 private:
-  int32_t available;
-  int32_t head;
-  int32_t tail;
-  bool sorted;
+  int16_t available;
+  int16_t pointer[TRACKS];
+  int16_t head[TRACKS];
   Node<T> buffer[SIZE];
-  int32_t iterator;
 
-  void swap(const int32_t i, const int32_t j)
+  std::tuple<int16_t,int16_t,bool> search(const uint8_t track, const T &data)
   {
-    // side-effects: does not update tail or available
-    if ( i == j )
-      return;
+    int16_t last {UNDEFINED};
+    int16_t curr {pointer[track]};
+    bool go_right = data >= buffer[curr].data;
+    while ( true )
+    {
+      const T &current{buffer[curr].data};
+      if ( go_right )
+      {
+	if (data <= current )
+	  break;
+      
+	if ( curr == UNDEFINED )
+	  break;
+	last = curr;
+	curr = buffer[curr].next;
+      }
+      else
+      {
+	if ( data > current )
+	  break;
 
-    // update indices
-    const int32_t ip {buffer[i].prev};
-    const int32_t ipn {buffer[ip].next};
-    const int32_t in {buffer[i].next};
-    const int32_t inp {buffer[in].prev};
-    const int32_t jp {buffer[j].prev};
-    const int32_t jpn {buffer[jp].next};
-    const int32_t jn {buffer[j].next};
-    const int32_t jnp {buffer[jn].prev};
-
-    buffer[i].prev = jp;
-    buffer[i].next = ip;
-    buffer[j].prev = jn;
-    buffer[j].next = in;
-
-    if ( buffer[i].next != UNDEFINED )
-      buffer[buffer[i].next].prev = i;
-    if ( buffer[j].prev != UNDEFINED )
-      buffer[buffer[j].prev].next = j;
-    if ( buffer[j].next != UNDEFINED )
-      buffer[buffer[j].next].prev = j;
-    if ( buffer[i].prev != UNDEFINED )
-    buffer[buffer[i].prev].next = i;
-
-    // swap
-    T temp {buffer[i].data};
-    buffer[i].data = buffer[j].data;
-    buffer[j].data = temp;
-
-    // update head
-    if ( j == head )
-      head = i;
-    else if ( i == head )
-      head = j;
-  }
+	if ( curr == UNDEFINED )
+	  break;
+	last = curr;
+	curr = buffer[curr].prev;
+      }
+    }
+    return std::tuple<int16_t,int16_t,bool> {curr, last, go_right};
+ }
 
 public:
   Buffer()
@@ -95,214 +84,186 @@ public:
       else
         buffer[i].next = i + 1;
     }
-    iterator = UNDEFINED;
-    tail = UNDEFINED;
+
+    for ( uint8_t i{0}; i < TRACKS; ++i )
+    {
+      pointer[i] = UNDEFINED;
+      head[i] = UNDEFINED;
+    }
     available = 0;
-    head = UNDEFINED;
-    sorted = false;
   }
 
-  const int32_t insert(const uint32_t index, const T data)
+  void returnToZero(const uint8_t track)
   {
-    if ( index >= SIZE )
-      return -1;
+    pointer[track] = head[track];
+  }
+
+  bool notUndefined(const uint8_t track) const
+  {
+    return pointer[track] != UNDEFINED;
+  }
+
+  void next(const uint8_t track)
+  {
+    Node<T> &current {buffer[pointer[track]]};
+    pointer[track] = current.next;
+  }
+
+  const T &get(const uint8_t track) const
+  {
+    assert(pointer[track] != UNDEFINED);
+    return buffer[pointer[track]].data;
+  }
+
+  void seek(const uint8_t track, const T &data)
+  {
+    std::tuple<int16_t,int16_t,bool> result {search(track, data)};
+    if ( std::get<0>(result) == UNDEFINED )
+      pointer[track] = std::get<1>(result);
+    else
+      pointer[track] = std::get<0>(result);
+  }
+
+  bool insert(const uint8_t track, const T &data)
+  {
+    assert(track < TRACKS);
     if ( available == UNDEFINED )
-      return -1;
-
-    const int32_t curr_available {available};
-    const int32_t next_available {buffer[available].next};
-    if ( head == UNDEFINED && tail == UNDEFINED )
-    {
-      // new node at beginning
-      buffer[0] = Node<T>{data};
-      // update endices
-      tail = 0;
-      head = 0;
-    }
-    else
-    {
-      if ( index == head )
-      {
-	buffer[available] = Node<T>{data};
-	buffer[available].next = head;
-	buffer[head].prev = available;
-	head = available;
-      }
-      else if ( index == available )
-      {
-	buffer[available] = Node<T>{data};
-	buffer[available].prev = tail;
-	buffer[tail].next = available;
-	tail = available;
-      }
-      else
-      {
-	buffer[available] = Node<T>{data};
-	buffer[available].prev = buffer[index].prev;
-	buffer[available].next = index;
-	buffer[buffer[index].prev].next = available;
-	buffer[index].prev = available;
-      }
-    }
-    available = next_available;
-    sorted = false;
-    return curr_available;
-  }
-
-  const int32_t insert(const T data)
-  {
-    return insert(available, data);
-  }
-
-  const int32_t insert_sorted(int32_t index, const T data)
-  {
-    while ( index != UNDEFINED && !(data < buffer[index].data) )
-      index = buffer[index].next;
-    if ( index == UNDEFINED )
-      return insert(data);
-    else
-      return insert(index, data); 
-  }
-
-  const int32_t insert_sorted(const T data)
-  {
-    if ( head == UNDEFINED )
-      return insert(data);
-    return insert_sorted(head, data);
-  }
-
-  const bool remove(const uint32_t index)
-  {
-    if ( index >= SIZE )
       return false;
+    buffer[available].data = data;
+    const int16_t new_node {available};
+    available = buffer[available].next;
+    if ( head[track] == UNDEFINED )
+    {
+      head[track] = new_node;
+      pointer[track] = new_node;
+      buffer[new_node].prev = UNDEFINED;
+      buffer[new_node].next = UNDEFINED;
+    }
+    else
+    {
+      std::tuple<int16_t,int16_t,bool> result {search(track, data)};
+      int16_t curr = std::get<0>(result);
+      int16_t last = std::get<1>(result);
+      bool go_right = std::get<2>(result);
 
-    if ( index == head && index == tail )
-    {
-      head = UNDEFINED;
-      tail = UNDEFINED;
+      if ( go_right && curr == UNDEFINED )
+      {
+	if ( last != UNDEFINED )
+	  buffer[last].next = new_node;
+	buffer[new_node].prev = last;
+	buffer[new_node].next = UNDEFINED;
+	pointer[track] = new_node;
+      }
+      else if ( !go_right && curr == UNDEFINED )
+      {
+	buffer[new_node].prev = UNDEFINED;
+	buffer[new_node].next = head[track];
+	buffer[head[track]].prev = new_node;
+	head[track] = new_node;
+      }
+      else if ( go_right )
+      {
+	if ( buffer[curr].prev != UNDEFINED )
+	  buffer[buffer[curr].prev].next = new_node;
+	buffer[new_node].prev = buffer[curr].prev;
+	buffer[new_node].next = curr;
+	buffer[curr].prev = new_node;
+	pointer[track] = curr;
+	if ( head[track] == pointer[track] )
+	  head[track] = new_node;
+      }
+      else if ( !go_right )
+      {
+	buffer[new_node].prev = curr;
+	buffer[new_node].next = last;
+	if ( buffer[curr].next != UNDEFINED )
+	  buffer[buffer[curr].next].prev = new_node;
+	buffer[curr].next = new_node;
+      }
     }
-    else if ( index == head )
-    {
-      head = buffer[head].next;
-      buffer[head].prev = UNDEFINED;
-    }
-    else if ( index == tail )
-    {
-      tail = buffer[tail].prev;
-      buffer[tail].next = UNDEFINED;
-    }
-    else if ( buffer[index].prev != UNDEFINED && buffer[index].next != UNDEFINED )
-    {
-      buffer[buffer[index].prev].next = buffer[index].next;
-      buffer[buffer[index].next].prev = buffer[index].prev;
-    }
-    buffer[index] = Node<T>{};
-    buffer[index].next = available;
-    available = index;
-    sorted = false;
     return true;
   }
-
-  const T& operator[](const int16_t index) const
+  
+  void remove(const uint8_t track)
   {
-    return buffer[index].data;
-  }
-
-  const int32_t getNext(const int16_t index) const
-  {
-    return buffer[index].next;
-  }
-
-  int32_t getHead() const
-  {
-    return head;
-  }
-
-  // sorting O(n)
-
-  void sort()
-  {
-    int32_t i {0};
-    for ( int32_t current{head}; current != UNDEFINED; ++i )
+    assert(track < TRACKS);
+    if ( head[track] == UNDEFINED )
+      return;
+    const int16_t curr {pointer[track]};
+    if ( pointer[track] == head[track] )
     {
-      swap(i, current);
-      current = buffer[i].next;
+      head[track] = buffer[head[track]].next;
+      pointer[track] = head[track];
+      if ( buffer[curr].next != UNDEFINED )
+	buffer[buffer[curr].next].prev = UNDEFINED;
     }
-    head = 0;
-    tail = i - 1;
-    available = i < SIZE ? i : UNDEFINED;
-    sorted = true;
-  }
-
-  // search O(log n)
-
-  int32_t search(const T data) const
-  {
-    if ( !sorted )
-      return -1;
-    int32_t left {head};
-    int32_t right {tail};
-    while ( left < right )
+    else
     {
-      int32_t middle {(right - left) / 2 + left};
-      if ( data == buffer[middle].data )
-	return middle;
-      else if ( data < buffer[middle].data )
-	right = middle;
+      if ( buffer[curr].prev != UNDEFINED )
+	buffer[buffer[curr].prev].next = buffer[curr].next;
+      if ( buffer[curr].next != UNDEFINED )
+      {
+        buffer[buffer[curr].next].prev = buffer[curr].prev;
+	pointer[track] = buffer[curr].next;
+      }
       else
-	left = middle + 1;
+	pointer[track] = buffer[curr].prev;
     }
-    return left;
+
+    buffer[curr] = Node<T>{};
+    buffer[curr].next = available;
+    available = curr;
   }
 
   #ifdef CATCH_CONFIG_MAIN
-  Buffer& begin()
+  int16_t getHead(uint8_t track) const
   {
-    iterator = head;
-    return *this;
+    return head[track];
   }
 
-  bool operator!=(const Buffer &rhs) const
+  int16_t getPointer(uint8_t track) const
   {
-    return iterator != UNDEFINED;
+    return pointer[track];
   }
 
-  const Buffer& end() const
-  {
-    return *this;
-  }
-
-  Buffer& operator++()
-  {
-    iterator = buffer[iterator].next;
-    return *this;
-  }
-
-  const T& operator*() const
-  {
-    return buffer[iterator].data;
-  }
-
-  void doSwap(const int32_t i, const int32_t j)
-  {
-    swap(i, j);
-  }
-
-  int32_t getTail() const
-  {
-    return tail;
-  }
-
-  int32_t getAvailable() const
+  int16_t getAvailable() const
   {
     return available;
+  }
+
+  void setPointer(uint8_t track, int16_t index)
+  {
+    pointer[track] = index;
+  }
+
+  string traverse(uint8_t track) const
+  {
+    stringstream result;
+    for ( int16_t index {head[track]};
+	  index != UNDEFINED;
+	  index = buffer[index].next)
+    {
+      result << buffer[index].data;
+    }
+    return result.str();
   }
 
   string dump() const
   {
     stringstream result;
     for (int i {0}; i < SIZE; i ++ )
-      result << buffer[i].prev << ":" << buffer[i].next << ":" << buffer[i].data << " ";
+    {
+      if (buffer[i].prev == UNDEFINED)
+	result << 'u';
+      else
+	result << buffer[i].prev;
+      result << ':';
+      if (buffer[i].next == UNDEFINED)
+	result << 'u';
+      else
+	result << buffer[i].next;
+      result << ":" << buffer[i].data << " ";
+    }
     return result.str();
   }
   #endif

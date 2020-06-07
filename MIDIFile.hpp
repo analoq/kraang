@@ -56,7 +56,6 @@ public:
     // tracks
     for ( int16_t i = 0; i < tracks; i ++ )
     {
-      sequence.returnToZero();
 	uint8_t track_name[80];
         uint32_t track_size, track_pos;
 	// track header
@@ -90,15 +89,15 @@ public:
 	    case Event::NoteOff:
 	      param1 = fp.readByte();
 	      param2 = fp.readByte();
-	      sequence.addEvent(Event{track_time, Event::NoteOff, channel, param1, 0});
+	      sequence.addEvent(1, Event{track_time, Event::NoteOff, channel, param1, 0});
 	      break;
 	    case Event::NoteOn:
 	      param1 = fp.readByte();
 	      param2 = fp.readByte();
 	      if (param2)
-		sequence.addEvent(Event{track_time, Event::NoteOn, channel, param1, param2});
+		sequence.addEvent(1, Event{track_time, Event::NoteOn, channel, param1, param2});
 	      else
-		sequence.addEvent(Event{track_time, Event::NoteOff, channel, param1, 0});
+		sequence.addEvent(1, Event{track_time, Event::NoteOff, channel, param1, 0});
 	      break;
 	    case Event::PolyAfter:
 	      param1 = fp.readByte();
@@ -110,16 +109,16 @@ public:
 	      switch ( param1 )
 	      {
 		case 1: // modulation
-		  sequence.addEvent(Event{track_time, Event::Expression, channel, param1, param2});
+		  sequence.addEvent(1, Event{track_time, Event::Expression, channel, param1, param2});
 		  break;
 		case 64: // sustain pedal
-		  sequence.addEvent(Event{track_time, Event::Expression, channel, param1, param2});
+		  sequence.addEvent(1, Event{track_time, Event::Expression, channel, param1, param2});
 		  break;
 	      }
 	      break;
 	    case Event::ProgChange:
 	      param1 = fp.readByte();
-	      sequence.addEvent(Event{track_time, Event::ProgChange, channel, param1, 0});
+	      sequence.addEvent(1, Event{track_time, Event::ProgChange, channel, param1, 0});
 	      break;
 	    case Event::AfterTouch:
 	      param1 = fp.readByte();
@@ -127,66 +126,66 @@ public:
 	    case Event::PitchBend:
 	      param1 = fp.readByte();
 	      param2 = fp.readByte();
-	      sequence.addEvent(Event{track_time, Event::PitchBend, channel, param1, param2});
+	      sequence.addEvent(1, Event{track_time, Event::PitchBend, channel, param1, param2});
 	      break;
 	    case Event::SysEx:
-		    switch ( channel )
-		    {
-		      // SysEx Event
-		      case 0x0:
-		      case 0x7:
-			      break;
-		      // Meta Event
-		      case 0xF: 
-			  type = fp.readByte();
-			  size = read_varlength();
-			  switch ( type )
-			  {
-				  case 0x51:
-				    sequence.addEvent(Event{track_time, Event::Tempo, fp.readByte(), fp.readByte(), fp.readByte()});
-				    break;
-				  case 0x58:
-				    sequence.addEvent(Event{track_time, Event::Meter, fp.readByte(),
-					                    static_cast<uint8_t>(1 << fp.readByte()), fp.readByte()});
-				    fp.readByte(); // ignore # of 1/32nd notes per 24 MIDI clocks
-				    break;
-				  case 0x03:
-				    // track name
-				    fp.read(size < sizeof(track_name) ? size : sizeof(track_name), track_name);
-				    track_name[size] = 0;
-				    printf("Track Name: %s\n", track_name);
-				    break;
-					  
-				  case 0x00:
-					  // sequence number
-				  case 0x01:
-					  // text event
-				  case 0x04:
-					  // instrument name
-				  case 0x06:
-					  // marker
-				  case 0x20:
-					  // midi channel prefix
-				  case 0x54:
-					  // SMTPE offset
-				  case 0x59:
-					  // key signature
-				  case 0x2f:
-					  // end of track
-				  default:
-					  fp.seek(size);
-			  }
-			  break;
-			default:
-			  return -3;
-		    }
-		    break;
-	      default:
-		return -4;
-	    }
+	      switch ( channel )
+	      {
+		// SysEx Event
+		case 0x0:
+		case 0x7:
+			break;
+		// Meta Event
+		case 0xF: 
+		  type = fp.readByte();
+		  size = read_varlength();
+		  switch ( type )
+		  {
+		    case 0x51:
+		      sequence.addEvent(0, Event{track_time, Event::Tempo, fp.readByte(), fp.readByte(), fp.readByte()});
+		      break;
+		    case 0x58:
+		      sequence.addEvent(0, Event{track_time, Event::Meter, fp.readByte(),
+					      static_cast<uint8_t>(1 << fp.readByte()), fp.readByte()});
+		      fp.readByte(); // ignore # of 1/32nd notes per 24 MIDI clocks
+		      break;
+		    case 0x03:
+		      // track name
+		      fp.read(size < sizeof(track_name) ? size : sizeof(track_name), track_name);
+		      track_name[size] = 0;
+		      printf("Track Name: %s\n", track_name);
+		      break;
+			    
+		    case 0x00:
+			    // sequence number
+		    case 0x01:
+			    // text event
+		    case 0x04:
+			    // instrument name
+		    case 0x06:
+			    // marker
+		    case 0x20:
+			    // midi channel prefix
+		    case 0x54:
+			    // SMTPE offset
+		    case 0x59:
+			    // key signature
+		    case 0x2f:
+			    // end of track
+		    default:
+			    fp.seek(size);
+	      }
+	      break;
+	    default:
+	      return -3;
+	  }
+	  break;
+	default:
+	  return -4;
       }
     }
-    sequence.returnToHead();
+    }
+    sequence.returnToZero();
     return 0;
   }
 };

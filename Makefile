@@ -5,6 +5,7 @@ debug: test
 	lldb test -- -b
 
 test: osx/test.cpp Buffer.hpp Sequence.hpp MIDIFile.hpp Player.hpp
+	rm -f *.gcda *.gcno *.gcov
 	g++ -g -std=c++11 -o test osx/test.cpp
 
 main: osx/main.cpp Player.hpp

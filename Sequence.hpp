@@ -1,66 +1,16 @@
 #ifndef SEQUENCE_HPP
 #define SEQUENCE_HPP
 #include "Buffer.hpp"
+#include "Event.hpp"
 
-class Event
-{
-public:
-  uint32_t position;
-  enum Type : uint8_t
-  {
-    None = 0x00,
-    NoteOff = 0x80,
-    NoteOn = 0x90,
-    PolyAfter = 0xA0,
-    Expression = 0xB0,
-    ProgChange = 0xC0,
-    AfterTouch = 0xD0,
-    PitchBend = 0xE0,
-    SysEx = 0xF0,
-    Tempo = 0xFE,
-    Meter = 0xFF,
-  } type;
-  union
-  {
-    uint8_t channel;
-    uint8_t param0;
-  };
-  uint8_t param1;
-  uint8_t param2;
-
-  Event() : position{0}, type{None}, param0{0}, param1{0}, param2{0}
-  {
-  }
-
-  Event(uint32_t p, Type t, uint8_t p0, uint8_t p1, uint8_t p2 )
-    : position{p}, type{t}, param0{p0}, param1{p1}, param2{p2}
-  {
-  }
-
-  const double getBpm() const
-  {
-    return 60e6 / (param0 << 16 | param1 << 8 | param0);
-  }
-
-  bool operator <(const Event &a) const
-  {
-    return position < a.position;
-  }
-
-  bool operator ==(const Event &a) const
-  {
-    return position == a.position;
-  }
-};
-
+static const int TRACKS = 2;
 static const int SIZE = 2048;
 
 class Sequence
 {
 private:
-  Buffer<Event, SIZE> buffer;
+  Buffer<Event, SIZE, TRACKS> buffer;
   uint16_t ticks;
-  int16_t index;
 public:
   Sequence()
   {
@@ -70,7 +20,6 @@ public:
   void clear()
   {
     buffer.clear();
-    index = UNDEFINED;
     ticks = 24;
   }
 
@@ -84,43 +33,34 @@ public:
     ticks = t;
   }
 
-  void returnToHead()
-  {
-    index = buffer.getHead();
-  }
-
   void returnToZero()
   {
-    index = UNDEFINED;
+    for ( uint8_t track {0}; track < TRACKS; ++track )
+      buffer.returnToZero(track);
   }
 
-  const bool hasEvent() const
+  const bool hasEvent(uint8_t track) const
   {
-    return index != UNDEFINED;
+    return buffer.notUndefined(track);
   }
 
-  const Event& getEvent() const
+  const Event& getEvent(uint8_t track) const
   {
-    assert(index >= 0 && index < SIZE);
-    return buffer[index];
+    return buffer.get(track);
   }
 
-  void nextEvent()
+  void nextEvent(uint8_t track)
   {
-    if ( index != UNDEFINED )
-      index = buffer.getNext(index);
+    buffer.next(track);
   }
 
-  void addEvent(Event event)
+  void addEvent(const uint8_t track, const Event event)
   {
-    if ( index == UNDEFINED )
-      index = buffer.insert_sorted(event);
-    else
-      index = buffer.insert_sorted(index, event);
+    buffer.insert(track, event);
   }
 
   #ifdef CATCH_CONFIG_MAIN
-  Buffer<Event,SIZE> &getBuffer()
+  Buffer<Event,SIZE,TRACKS> &getBuffer()
   {
     return buffer;
   }
