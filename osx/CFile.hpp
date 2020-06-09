@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "../File.hpp"
 
-class CFile : public File
+class CFile : public KFile
 {
 private:
   FILE *fp;
@@ -13,7 +13,7 @@ public:
     is_valid = (fp != NULL);
   }
 
-  bool isValid() const
+  bool isValid()
   {
     return is_valid;
   }
@@ -33,7 +33,7 @@ public:
     fread(data, length, 1, fp);
   }
 
-  uint32_t getPosition() const
+  uint32_t getPosition()
   {
     return ftell(fp);
   }

@@ -6,7 +6,7 @@
 class MIDIFile
 {
 private:
-  File &fp;
+  KFile &fp;
 
   int32_t read_int(uint8_t length)
   {
@@ -32,7 +32,7 @@ private:
   }
 
 public:
-  MIDIFile(File &fp) : fp{fp}
+  MIDIFile(KFile &fp) : fp{fp}
   {
   }
 
