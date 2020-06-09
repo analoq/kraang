@@ -49,9 +49,6 @@ public:
     int16_t format = read_int(2);
     int16_t tracks = read_int(2);
     int16_t ticks = read_int(2);
-    printf("Format: %d\n", format);
-    printf("Tracks: %d\n", tracks);
-    //printf("Ticks: %d\n", ticks);
     sequence.setTicks(ticks);
     // tracks
     for ( int16_t i = 0; i < tracks; i ++ )
@@ -153,7 +150,6 @@ public:
 		      // track name
 		      fp.read(size < sizeof(track_name) ? size : sizeof(track_name), track_name);
 		      track_name[size] = 0;
-		      printf("Track Name: %s\n", track_name);
 		      break;
 			    
 		    case 0x00:
