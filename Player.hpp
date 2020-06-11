@@ -6,17 +6,13 @@
 class Timing
 {
 public:
-  virtual uint32_t getMicroseconds() = 0;
+  virtual uint32_t getMicroseconds() const = 0;
   virtual void delay(uint32_t us) = 0;
 };
 
 class MIDIPort
 {
 public:
-  MIDIPort()
-  {
-  }
-
   virtual void send(const Event &event) = 0;
 };
 

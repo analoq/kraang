@@ -19,7 +19,7 @@ public:
     start = chrono::high_resolution_clock::now();
   }
 
-  uint32_t getMicroseconds()
+  uint32_t getMicroseconds() const
   {
     auto now = chrono::high_resolution_clock::now();
     double diff = chrono::duration<double, std::micro>(now - start).count();
@@ -38,7 +38,7 @@ private:
   MIDIClientRef MIDIClient;
   MIDIPortRef MIDIInPort;
   MIDIPortRef MIDIOutPort;
-  MIDIEndpointRef MIDIOutput;
+  MIDIEndpointRef MIDIDest;
 
   static void MidiHandler(const MIDIPacketList *pktlist, void *readProcRefCon,
                           void *srcConnRefCon)
@@ -52,7 +52,8 @@ public:
     MIDIClientCreate(CFSTR("analoq.kraang"), NULL, NULL, &MIDIClient);
     MIDIInputPortCreate(MIDIClient, CFSTR("Input port"), MidiHandler, this, &MIDIInPort);
     MIDIOutputPortCreate(MIDIClient, CFSTR("Output port"), &MIDIOutPort);
-    MIDISourceCreate(MIDIClient, CFSTR("kraang.output"), &MIDIOutput);
+    //MIDISourceCreate(MIDIClient, CFSTR("kraang.output"), &MIDIOutput);
+    MIDIDest = MIDIGetDestination(1);
   }
 
   ~MacMIDIPort()
@@ -68,9 +69,16 @@ public:
     data[0] = event.type | event.channel;
     data[1] = event.param1;
     data[2] = event.param2;
-    MIDIPacketListAdd(&pktlist, sizeof(MIDIPacket), packet, 0, 3, data);
-    MIDIReceived(MIDIOutput, &pktlist);
-    //MIDISend(MIDIOutPort, MIDIOutPort, &pktlist);
+    switch ( event.type )
+    {
+      case Event::ProgChange:
+	MIDIPacketListAdd(&pktlist, sizeof(MIDIPacket), packet, 0, 2, data);
+        break;
+      default:
+        MIDIPacketListAdd(&pktlist, sizeof(MIDIPacket), packet, 0, 3, data);
+    }
+    //MIDIReceived(MIDIOutput, &pktlist);
+    MIDISend(MIDIOutPort, MIDIDest, &pktlist);
   }
 };
 

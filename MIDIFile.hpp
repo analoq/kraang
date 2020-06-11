@@ -106,8 +106,7 @@ public:
 	      switch ( param1 )
 	      {
 		case 1: // modulation
-		  sequence.addEvent(1, Event{track_time, Event::Expression, channel, param1, param2});
-		  break;
+		case 7: // volume
 		case 64: // sustain pedal
 		  sequence.addEvent(1, Event{track_time, Event::Expression, channel, param1, param2});
 		  break;

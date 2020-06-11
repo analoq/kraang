@@ -96,7 +96,7 @@ public:
   {
   }
 
-  uint32_t getMicroseconds()
+  uint32_t getMicroseconds() const
   {
     return microseconds;
   }
