@@ -4,7 +4,7 @@
 #include "Event.hpp"
 
 static const int TRACKS = 2;
-static const int SIZE = 8192;
+static const int SIZE = 16384;
 static const int TEMPO_TRACK = 0;
 
 struct SeekResult

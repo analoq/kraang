@@ -105,9 +105,10 @@ public:
 	      param2 = fp.readByte();
 	      switch ( param1 )
 	      {
-		case 1: // modulation
-		case 7: // volume
-		case 64: // sustain pedal
+		case 0x01: // modulation
+		case 0x07: // volume
+		case 0x0A: // pan
+		case 0x40: // sustain pedal
 		  sequence.addEvent(1, Event{track_time, Event::Expression, channel, param1, param2});
 		  break;
 	      }
