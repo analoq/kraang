@@ -1,4 +1,5 @@
 #include <SD.h>
+#include "Adafruit_ZeroTimer.h"
 #include "Buffer.hpp"
 #include "Sequence.hpp"
 #include "MIDIFile.hpp"
@@ -67,13 +68,26 @@ public:
 };
 
 // globals
+Adafruit_ZeroTimer zerotimer {Adafruit_ZeroTimer(3)};
 ArduinoMIDIPort midi_port;
 Sequence sequence;
 Player player{sequence, midi_port};
 
+void TC3_Handler()
+{
+  Adafruit_ZeroTimer::timerHandler(3);
+}
+
+void TimerCallback0(void)
+{
+  player.tick();
+  zerotimer.setCompare(0, player.getDelay() * 48 / 4);
+}
+
 void setup()
 {
-  while (!Serial);
+  // initialize
+  while (!Serial) delay(10);
   Serial.begin(9600);
   pinMode(13, OUTPUT);
 
@@ -82,6 +96,7 @@ void setup()
   
   midi_port.init();
 
+  // load sequence
   Serial.println("Opening MIDI file");
   ArduinoFile file{"ANALOQ~2.MID"};
   if ( file.isValid() )
@@ -94,20 +109,29 @@ void setup()
   midi_file.import(sequence);
   Serial.print("Ticks: ");
   Serial.println(sequence.getTicks());
+  Serial.print("Delay: ");
+  Serial.println(player.getDelay());
+
+  // setup timer
+  uint16_t compare = player.getDelay() * 48 / 4;
+  zerotimer.enable(false);
+  zerotimer.configure(TC_CLOCK_PRESCALER_DIV4,       // prescaler
+          TC_COUNTER_SIZE_16BIT,       // bit width of timer/counter
+          TC_WAVE_GENERATION_MATCH_PWM // frequency or PWM mode
+          );
+  zerotimer.setCompare(0, compare);
+  zerotimer.setCallback(true, TC_CALLBACK_CC_CHANNEL0, TimerCallback0);
+  zerotimer.enable(true);
 }
 
 void loop()
 {
-  uint32_t start {micros()};
-  digitalWrite(13, HIGH);
-  player.tick();
-  digitalWrite(13, LOW);
-  delayMicroseconds(player.getDelay() - (micros() - start));
-  /*Serial.print(player.getBpm());
+  Serial.print(player.getBpm());
   Serial.print('\t');
-  Serial.print(player.getMeasure());
+  Serial.print(player.getMeasure()+1);
   Serial.print('\t');
-  Serial.println(player.getBeat());*/
+  Serial.println(player.getBeat()+1);
+  delay(500);
 }
 
 void printDirectory(char *path)
