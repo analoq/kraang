@@ -18,26 +18,10 @@ public:
 
   void send(const Event &event)
   {
-    digitalWrite(13, HIGH);
     Serial1.write(event.type | event.channel);
     Serial1.write(event.param1);
     if ( event.type != Event::ProgChange )
       Serial1.write(event.param2);
-    digitalWrite(13, LOW);
-  }
-};
-
-class ArduinoTiming : public Timing
-{
-public:
-  uint32_t getMicroseconds() const
-  {
-    return micros();
-  }
-
-  void delay(uint32_t us)
-  {
-    delayMicroseconds(us);
   }
 };
 
@@ -85,8 +69,7 @@ public:
 // globals
 ArduinoMIDIPort midi_port;
 Sequence sequence;
-ArduinoTiming timing;
-Player player{sequence, timing, midi_port};
+Player player{sequence, midi_port};
 
 void setup()
 {
@@ -115,7 +98,11 @@ void setup()
 
 void loop()
 {
+  uint32_t start {micros()};
+  digitalWrite(13, HIGH);
   player.tick();
+  digitalWrite(13, LOW);
+  delayMicroseconds(player.getDelay() - (micros() - start));
   /*Serial.print(player.getBpm());
   Serial.print('\t');
   Serial.print(player.getMeasure());

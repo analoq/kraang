@@ -3,13 +3,6 @@
 #include <math.h>
 #include "Sequence.hpp"
 
-class Timing
-{
-public:
-  virtual uint32_t getMicroseconds() const = 0;
-  virtual void delay(uint32_t us) = 0;
-};
-
 class MIDIPort
 {
 public:
@@ -29,7 +22,6 @@ private:
   uint32_t delay;
   Sequence &sequence;
   MIDIPort &midi_port;
-  Timing &timing;
   bool events_remain;
 
   void setBpm(double b)
@@ -45,14 +37,19 @@ private:
     ticks_per_beat = 4 * sequence.getTicks() / d;
   }
 public:
-  Player(Sequence &s, Timing &t, MIDIPort &p)
-    : position{0}, sequence{s}, timing{t}, midi_port{p}
+  Player(Sequence &s, MIDIPort &p)
+    : position{0}, sequence{s}, midi_port{p}
   {
     setBpm(120.0);
     setMeter(4,4);
     measure = 0;
     beat = 0;
     events_remain = true;
+  }
+
+  const uint32_t getDelay() const
+  {
+    return delay;
   }
 
   const double getBpm() const
@@ -93,7 +90,6 @@ public:
 
   bool tick()
   {
-    uint32_t start {timing.getMicroseconds()};
     // tempo track
     if ( sequence.hasEvents(TEMPO_TRACK) )
     {
@@ -146,8 +142,6 @@ public:
       }
     }
 
-    while ( timing.getMicroseconds() - start < delay )
-      timing.delay(10);
     return events_remain;
   }
 };

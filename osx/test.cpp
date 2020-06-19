@@ -87,7 +87,7 @@ ostream& operator<<(ostream &o, const Event& event)
   return o;
 }
 
-class TestTiming : public Timing
+class TestTiming
 {
 private:
   uint32_t microseconds;
@@ -472,9 +472,8 @@ TEST_CASE("MIDIFile", "[midifile]")
 TEST_CASE("Player Count", "[player]")
 {
   Sequence sequence;
-  TestTiming timing;
   TestMIDIPort midi_port;
-  Player player{sequence, timing, midi_port};
+  Player player{sequence, midi_port};
   sequence.addEvent(0, Event{0, Event::Meter, 3, 4, 0});
   sequence.addEvent(0, Event{24*3, Event::Meter, 6, 8, 0});
   sequence.returnToZero();
@@ -504,17 +503,18 @@ TEST_CASE("Player Count", "[player]")
 TEST_CASE("Player Play", "[player]")
 {
   Sequence sequence;
-  TestTiming timing;
   TestMIDIPort midi_port;
+  TestTiming timing;
 
   CFile file {"midi_1.mid"};
   MIDIFile midi_file{file};
   midi_file.import(sequence);
-  Player player{sequence, timing, midi_port};
+  Player player{sequence, midi_port};
   for ( int i{0}; i < 480*7; i ++ )
   {
     midi_port.setTime(timing.getMicroseconds());
     player.tick();
+    timing.delay(player.getDelay());
   }
   char result[] = "0:0:0:NoteOn,C4,20\n"
 		  "125000:100:0:NoteOff,C4\n"
@@ -533,11 +533,11 @@ TEST_CASE("Player Play", "[player]")
 		  "1050000:840:1:NoteOn,G3,90\n"
 		  "1175000:940:1:NoteOff,G3\n"
 		  "2400000:1920:0:NoteOn,C4,100\n"
-		  "2776800:2160:0:NoteOff,C4\n"
-		  "3153600:2400:0:NoteOn,C#4,100\n"
-		  "3530400:2640:0:NoteOff,C#4\n"
-		  "3907200:2880:0:NoteOn,D4,100\n"
-		  "4284000:3120:0:NoteOff,D4\n";
+		  "2774880:2160:0:NoteOff,C4\n"
+		  "3149760:2400:0:NoteOn,C#4,100\n"
+		  "3524640:2640:0:NoteOff,C#4\n"
+		  "3899520:2880:0:NoteOn,D4,100\n"
+		  "4274400:3120:0:NoteOff,D4\n";
   REQUIRE(midi_port.getLog() == result);
 
   midi_port.clear();
@@ -551,13 +551,14 @@ TEST_CASE("Player Play", "[player]")
   {
     midi_port.setTime(timing.getMicroseconds());
     player.tick();
+    timing.delay(player.getDelay());
   }
- 
-  char seekrs[] = "4660800:1920:0:NoteOn,C4,100\n"
-		  "5037600:2160:0:NoteOff,C4\n"
-		  "5414400:2400:0:NoteOn,C#4,100\n"
-		  "5791200:2640:0:NoteOff,C#4\n"
-		  "6168000:2880:0:NoteOn,D4,100\n"
-		  "6544800:3120:0:NoteOff,D4\n";
+
+  char seekrs[] = "4649280:1920:0:NoteOn,C4,100\n"
+		  "5024160:2160:0:NoteOff,C4\n"
+		  "5399040:2400:0:NoteOn,C#4,100\n"
+		  "5773920:2640:0:NoteOff,C#4\n"
+		  "6148800:2880:0:NoteOn,D4,100\n"
+		  "6523680:3120:0:NoteOff,D4\n";
   REQUIRE(midi_port.getLog() == seekrs); 
 }
