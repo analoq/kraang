@@ -1,9 +1,13 @@
-#include <SD.h>
+#include "SdFat.h"
 #include "Adafruit_ZeroTimer.h"
 #include "Buffer.hpp"
 #include "Sequence.hpp"
 #include "MIDIFile.hpp"
 #include "Player.hpp"
+
+// system globals
+SdFat sd;
+Adafruit_ZeroTimer zerotimer {Adafruit_ZeroTimer(3)};
 
 class ArduinoMIDIPort : public MIDIPort
 {
@@ -33,7 +37,7 @@ private:
 public:
   ArduinoFile(const char *path)
   {
-    f = SD.open(path, FILE_READ);
+    f = sd.open(path, O_RDONLY);
   }
 
   bool isValid()
@@ -67,8 +71,7 @@ public:
   }
 };
 
-// globals
-Adafruit_ZeroTimer zerotimer {Adafruit_ZeroTimer(3)};
+// application globals
 ArduinoMIDIPort midi_port;
 Sequence sequence;
 Player player{sequence, midi_port};
@@ -91,14 +94,13 @@ void setup()
   Serial.begin(9600);
   pinMode(13, OUTPUT);
 
-  SD.begin(SDCARD_SS_PIN);
+  sd.begin(SDCARD_SS_PIN, SD_SCK_MHZ(50));
   printDirectory("/");
-  
   midi_port.init();
 
   // load sequence
   Serial.println("Opening MIDI file");
-  ArduinoFile file{"ANALOQ~2.MID"};
+  ArduinoFile file{"analoq_fflegends.mid"};
   if ( file.isValid() )
     Serial.println("File Valid");
   else
@@ -136,24 +138,21 @@ void loop()
 
 void printDirectory(char *path)
 {
-  File root = SD.open("/");
-  while (true)
+  SdFile file;
+  SdFile dir;
+
+  dir.open(path, O_RDONLY);
+  while ( file.openNext(&dir, O_RDONLY) )
   {
-    File entry = root.openNextFile();
-    if (!entry)
-      return;
-    if (!entry.isDirectory())
+    if ( !file.isSubDir() && !file.isHidden() )
     {
-      // files have sizes, directories do not
-      char *name = entry.name();
-      if ( name[0] != '_' )
-      {
-        Serial.print(name);
-        Serial.print("\t");
-        Serial.println(entry.size(), DEC);
-      }
+      char name[16];
+      file.getName(name, 16);
+      Serial.print(name);
+      Serial.print('\t');
+      Serial.println(file.fileSize());
     }
-    entry.close();
+    file.close();
   }
-  root.close();
+  dir.close();
 }
