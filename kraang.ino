@@ -1,5 +1,7 @@
 #include "SdFat.h"
 #include "Adafruit_ZeroTimer.h"
+#include "Adafruit_RGBLCDShield.h"
+
 #include "Buffer.hpp"
 #include "Sequence.hpp"
 #include "MIDIFile.hpp"
@@ -8,6 +10,7 @@
 // system globals
 SdFat sd;
 Adafruit_ZeroTimer zerotimer {Adafruit_ZeroTimer(3)};
+Adafruit_RGBLCDShield lcd;
 
 class ArduinoMIDIPort : public MIDIPort
 {
@@ -89,18 +92,94 @@ void TimerCallback0(void)
 
 void setup()
 {
-  // initialize
+  // initialize serial comm
   while (!Serial) delay(10);
   Serial.begin(9600);
   pinMode(13, OUTPUT);
 
+  // initialize sd card
   sd.begin(SDCARD_SS_PIN, SD_SCK_MHZ(50));
-  printDirectory("/");
+
+  // initialize LCD
+  lcd.begin(16, 2);
+  lcd.setBacklight(0x7);
+
+  // initialize midi
   midi_port.init();
 
+  ui_choose_file();
+}
+
+void start_timer()
+{
+  player.returnToZero();
+  
+  uint16_t compare = player.getDelay() * 48 / 4;
+  zerotimer.enable(false);
+  zerotimer.configure(TC_CLOCK_PRESCALER_DIV4,       // prescaler
+          TC_COUNTER_SIZE_16BIT,       // bit width of timer/counter
+          TC_WAVE_GENERATION_MATCH_PWM // frequency or PWM mode
+          );
+  zerotimer.setCompare(0, compare);
+  zerotimer.setCallback(true, TC_CALLBACK_CC_CHANNEL0, TimerCallback0);
+  zerotimer.enable(true); 
+}
+
+void stop_timer()
+{
+  zerotimer.enable(false);
+}
+
+bool nextFileName(SdFile &dir, char longname[16], char shortname[13])
+{
+  SdFile file;
+  while ( file.openNext(&dir, O_RDONLY) )
+  {
+    if ( !file.isSubDir() && !file.isHidden() )
+    {
+      file.getName(longname, 16);
+      file.getSFN(shortname);
+      file.close();
+      return true;
+    }
+    file.close();
+  }
+  return false;
+}
+
+void ui_choose_file()
+{
+  char shortname[13];
+  SdFile dir;
+  dir.open("/", O_RDONLY);
+  while ( true )
+  {
+    char longname[16];
+    if ( !nextFileName(dir, longname, shortname) )
+    {
+      dir.rewind();
+      continue;
+    }
+    
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Select File:");
+    lcd.setCursor(0,1);
+    lcd.print(longname);
+  
+    uint8_t buttons;
+    while ( !(buttons = lcd.readButtons()) );
+    if ( buttons & BUTTON_SELECT )
+      break;
+    while ( lcd.readButtons() );
+  }
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("    Loading...  ");
+  
   // load sequence
   Serial.println("Opening MIDI file");
-  ArduinoFile file{"analoq_fflegends.mid"};
+  ArduinoFile file{shortname};
   if ( file.isValid() )
     Serial.println("File Valid");
   else
@@ -114,29 +193,37 @@ void setup()
   Serial.print("Delay: ");
   Serial.println(player.getDelay());
 
-  // setup timer
-  uint16_t compare = player.getDelay() * 48 / 4;
-  zerotimer.enable(false);
-  zerotimer.configure(TC_CLOCK_PRESCALER_DIV4,       // prescaler
-          TC_COUNTER_SIZE_16BIT,       // bit width of timer/counter
-          TC_WAVE_GENERATION_MATCH_PWM // frequency or PWM mode
-          );
-  zerotimer.setCompare(0, compare);
-  zerotimer.setCallback(true, TC_CALLBACK_CC_CHANNEL0, TimerCallback0);
-  zerotimer.enable(true);
+  start_timer();
+  
+  lcd.clear();
 }
 
 void loop()
 {
-  Serial.print(player.getBpm());
+  lcd.setCursor(0,0);
+  lcd.print(player.getBpm());
+  lcd.print(" BPM");
+  lcd.setCursor(0,1);
+  lcd.print(player.getMeasure()+1);
+  lcd.print(":");
+  lcd.print(player.getBeat()+1);
+  delay(200);
+
+  uint8_t buttons = lcd.readButtons();
+  if ( buttons )
+  {
+    stop_timer();
+    ui_choose_file();
+  }
+/*  Serial.print(player.getBpm());
   Serial.print('\t');
   Serial.print(player.getMeasure()+1);
   Serial.print('\t');
   Serial.println(player.getBeat()+1);
-  delay(500);
+  delay(500);*/
 }
 
-void printDirectory(char *path)
+/*void printDirectory(char *path)
 {
   SdFile file;
   SdFile dir;
@@ -155,4 +242,4 @@ void printDirectory(char *path)
     file.close();
   }
   dir.close();
-}
+}*/

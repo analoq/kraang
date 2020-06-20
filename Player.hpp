@@ -42,9 +42,7 @@ public:
   {
     setBpm(120.0);
     setMeter(4,4);
-    measure = 0;
-    beat = 0;
-    events_remain = true;
+    returnToZero();
   }
 
   const uint32_t getDelay() const
@@ -75,6 +73,14 @@ public:
   const uint8_t getBeat() const
   {
     return beat;
+  }
+
+  void returnToZero()
+  {
+    position = 0;
+    measure = 0;
+    beat = 0;
+    events_remain = true;
   }
 
   void seek(uint16_t m)
