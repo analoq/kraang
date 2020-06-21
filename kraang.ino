@@ -22,6 +22,7 @@ public:
   void init()
   {
     Serial1.begin(31250);
+    reset();
   }
 
   void send(const Event &event)
@@ -30,6 +31,21 @@ public:
     Serial1.write(event.param1);
     if ( event.type != Event::ProgChange )
       Serial1.write(event.param2);
+  }
+
+  void reset()
+  {
+    for ( uint8_t i {0}; i < 15; ++i )
+    {
+      // all notes off
+      Serial1.write(static_cast<uint8_t>(0xB0 | i));
+      Serial1.write(static_cast<uint8_t>(0x78));
+      Serial1.write(static_cast<uint8_t>(0x00));
+      // reset all controllers
+      Serial1.write(static_cast<uint8_t>(0xB0 | i));
+      Serial1.write(static_cast<uint8_t>(0x79));
+      Serial1.write(static_cast<uint8_t>(0x00));
+    }
   }
 };
 
@@ -87,7 +103,7 @@ void TC3_Handler()
 void TimerCallback0(void)
 {
   player.tick();
-  zerotimer.setCompare(0, player.getDelay() * 48 / 4);
+  zerotimer.setCompare(0, player.getDelay() * 48 / 8);
 }
 
 void setup()
@@ -114,9 +130,9 @@ void start_timer()
 {
   player.returnToZero();
   
-  uint16_t compare = player.getDelay() * 48 / 4;
+  uint16_t compare = player.getDelay() * 48 / 8;
   zerotimer.enable(false);
-  zerotimer.configure(TC_CLOCK_PRESCALER_DIV4,       // prescaler
+  zerotimer.configure(TC_CLOCK_PRESCALER_DIV8,       // prescaler
           TC_COUNTER_SIZE_16BIT,       // bit width of timer/counter
           TC_WAVE_GENERATION_MATCH_PWM // frequency or PWM mode
           );
@@ -200,19 +216,25 @@ void ui_choose_file()
 
 void loop()
 {
-  lcd.setCursor(0,0);
-  lcd.print(player.getBpm());
-  lcd.print(" BPM");
-  lcd.setCursor(0,1);
-  lcd.print(player.getMeasure()+1);
-  lcd.print(":");
-  lcd.print(player.getBeat()+1);
-  delay(200);
+  if ( player.visualsChanged() )
+  {
+    static char text[16];
+    uint16_t bpm {player.getBpm() * 10};
+    sprintf(text, "%3d.%d bpm %2d/%-2d", bpm/10, bpm%10, player.getMeterN(), player.getMeterD());
+    lcd.setCursor(0,0);
+    lcd.print(text);
+
+    sprintf(text, "%3d : %-2d", player.getMeasure()+1, player.getBeat()+1);
+    lcd.setCursor(0,1);
+    lcd.print(text);
+  }
+  delay(100);
 
   uint8_t buttons = lcd.readButtons();
   if ( buttons )
   {
     stop_timer();
+    midi_port.reset();
     ui_choose_file();
   }
 /*  Serial.print(player.getBpm());

@@ -23,11 +23,13 @@ private:
   Sequence &sequence;
   MIDIPort &midi_port;
   bool events_remain;
+  bool visuals_changed;
 
   void setBpm(double b)
   {
     bpm = b;
     delay = static_cast<uint32_t>(round(6e7 / (bpm * sequence.getTicks())));
+    visuals_changed = true;
   }
 
   void setMeter(uint8_t n, uint8_t d)
@@ -35,6 +37,7 @@ private:
     meter_n = n;
     meter_d = d;
     ticks_per_beat = 4 * sequence.getTicks() / d;
+    visuals_changed = true;
   }
 public:
   Player(Sequence &s, MIDIPort &p)
@@ -43,6 +46,7 @@ public:
     setBpm(120.0);
     setMeter(4,4);
     returnToZero();
+    visuals_changed = true;
   }
 
   const uint32_t getDelay() const
@@ -73,6 +77,16 @@ public:
   const uint8_t getBeat() const
   {
     return beat;
+  }
+
+  const bool visualsChanged()
+  {
+    if ( visuals_changed )
+    {
+      visuals_changed = false;
+      return true;
+    }
+    return false;
   }
 
   void returnToZero()
@@ -146,6 +160,7 @@ public:
         beat = 0;
         measure ++;
       }
+      visuals_changed = true;
     }
 
     return events_remain;
