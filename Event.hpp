@@ -35,9 +35,9 @@ public:
   {
   }
 
-  const double getBpm() const
+  const uint32_t getTempo() const
   {
-    return 60e6 / (param0 << 16 | param1 << 8 | param0);
+    return (param0 << 16 | param1 << 8 | param0);
   }
 
   bool operator >(const Event &a) const

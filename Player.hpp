@@ -16,19 +16,19 @@ private:
   uint16_t measure;
   uint8_t beat;
   uint16_t ticks_per_beat;
-  double bpm;
   uint8_t meter_n;
   uint8_t meter_d;
+  uint32_t tempo;
   uint32_t delay;
   Sequence &sequence;
   MIDIPort &midi_port;
   bool events_remain;
   bool visuals_changed;
 
-  void setBpm(double b)
+  void setTempo(uint32_t t)
   {
-    bpm = b;
-    delay = static_cast<uint32_t>(round(6e7 / (bpm * sequence.getTicks())));
+    tempo = t;
+    delay = static_cast<uint32_t>(round(static_cast<double>(tempo) / sequence.getTicks()));
     visuals_changed = true;
   }
 
@@ -43,7 +43,7 @@ public:
   Player(Sequence &s, MIDIPort &p)
     : position{0}, sequence{s}, midi_port{p}
   {
-    setBpm(120.0);
+    setTempo(500000);
     setMeter(4,4);
     returnToZero();
     visuals_changed = true;
@@ -54,9 +54,9 @@ public:
     return delay;
   }
 
-  const double getBpm() const
+  const uint16_t getBpm() const
   {
-    return bpm;
+    return round(600e6 / tempo);
   }
 
   const uint8_t getMeterN() const
@@ -104,7 +104,7 @@ public:
     measure = m;
     beat = 0;
     events_remain = true;
-    setBpm(result.bpm);
+    setTempo(result.tempo);
     setMeter(result.numerator, result.denominator);
   }
 
@@ -121,7 +121,7 @@ public:
 	switch ( event.type )
 	{
 	  case Event::Tempo:
-	    setBpm(event.getBpm());
+	    setTempo(event.getTempo());
 	    break;
 	  case Event::Meter:
 	    setMeter(event.param0, event.param1);

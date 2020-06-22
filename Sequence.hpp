@@ -10,7 +10,7 @@ static const int TEMPO_TRACK = 0;
 struct SeekResult
 {
   uint32_t position;
-  double bpm;
+  uint32_t tempo;
   uint8_t numerator;
   uint8_t denominator;
 };
@@ -29,21 +29,21 @@ private:
     result.position = 0;
     result.numerator = 4;
     result.denominator = 4;
-    result.bpm = 120.0;
+    result.tempo = 500000;
     while ( buffer.notUndefined(TEMPO_TRACK) )
     {
       const Event &event {buffer.get(TEMPO_TRACK)};
       if ( event.type == Event::Meter )
       {
-	result.position = event.position;
-	m += result.position * result.denominator / (result.numerator * ticks * 4);
-	result.numerator = event.param0;
-	result.denominator = event.param1;
-	if ( m >= measure )
-	  break;
+      	result.position = event.position;
+      	m += result.position * result.denominator / (result.numerator * ticks * 4);
+      	result.numerator = event.param0;
+      	result.denominator = event.param1;
+      	if ( m >= measure )
+      	  break;
       }
       else if ( event.type == Event::Tempo )
-	result.bpm = event.getBpm();
+      	result.tempo = event.getTempo();
       buffer.next(TEMPO_TRACK);
     }
     result.position += (measure - m)*result.numerator*ticks*4/result.denominator;

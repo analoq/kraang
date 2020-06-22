@@ -219,7 +219,7 @@ void loop()
   if ( player.visualsChanged() )
   {
     static char text[16];
-    uint16_t bpm {player.getBpm() * 10};
+    uint16_t bpm {player.getBpm()};
     sprintf(text, "%3d.%d bpm %2d/%-2d", bpm/10, bpm%10, player.getMeterN(), player.getMeterD());
     lcd.setCursor(0,0);
     lcd.print(text);

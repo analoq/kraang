@@ -72,7 +72,7 @@ ostream& operator<<(ostream &o, const Event& event)
 	<< getNote(event.param1) << getOctave(event.param1);
       break;
     case Event::Tempo:
-      o << "Tempo," << fixed << setprecision(1) << event.getBpm();
+      o << "Tempo," << event.getTempo();
       break;
     case Event::Meter:
       o << "Meter," << static_cast<int>(event.param0) << "/"
@@ -425,9 +425,9 @@ TEST_CASE("Sequence Seek", "[sequence]")
 TEST_CASE("MIDIFile", "[midifile]")
 {
   Sequence sequence;
-  char trk0[] = "0:Tempo,100.0\n"
+  char trk0[] = "0:Tempo,599817\n"
 		"0:Meter,4/4\n"
-		"1920:Tempo,80.0\n"
+		"1920:Tempo,749835\n"
 		"1920:Meter,3/4\n";
   char trk1[] = "0:0:NoteOn,C4,20\n"
 		"100:0:NoteOff,C4\n"
@@ -546,7 +546,7 @@ TEST_CASE("Player Play", "[player]")
   REQUIRE(player.getBeat() == 0);
   REQUIRE(player.getMeterN() == 3);
   REQUIRE(player.getMeterD() == 4);
-  REQUIRE(static_cast<int>(player.getBpm()) == 80);
+  REQUIRE(player.getBpm() == 800);
   for ( int i{0}; i < 480*3; i ++ )
   {
     midi_port.setTime(timing.getMicroseconds());
