@@ -6,7 +6,7 @@
 class MIDIPort
 {
 public:
-  virtual void send(const Event &event) = 0;
+  virtual void send(const uint8_t channel, const Event &event) = 0;
 };
 
 class Player
@@ -22,7 +22,7 @@ private:
   uint32_t delay;
   Sequence &sequence;
   MIDIPort &midi_port;
-  bool events_remain;
+  bool events_remain[TRACKS];
   bool visuals_changed;
 
   void setTempo(uint32_t t)
@@ -89,21 +89,26 @@ public:
     return false;
   }
 
+  void setEventsRemain()
+  {
+    for ( uint8_t i{0}; i < TRACKS; ++i )
+      events_remain[i] = true;
+  }
+
   void returnToZero()
   {
     position = 0;
     measure = 0;
     beat = 0;
-    events_remain = true;
+    setEventsRemain();
   }
 
   void seek(uint16_t m)
   {
-    SeekResult result {sequence.seek(m)};
+    SeekResult result {sequence.seek(m, events_remain)};
     position = result.position;
     measure = m;
     beat = 0;
-    events_remain = true;
     setTempo(result.tempo);
     setMeter(result.numerator, result.denominator);
   }
@@ -134,21 +139,27 @@ public:
       }
     }
  
-    // music track
-    if ( sequence.hasEvents(1) && events_remain )
+    // music tracks
+    for ( uint8_t i{1}; i < TRACKS; ++i )
     {
-      while ( true )
+      if ( sequence.hasEvents(i) && events_remain[i] )
       {
-	const Event &event = sequence.getEvent(1);
-	if ( event.position > position )
-	  break;
-	midi_port.send(event);
-	if ( !sequence.nextEvent(1) )
-	{
-	  events_remain = false;
-	  break;
+	const Track &track {sequence.getTrack(i)};
+        while ( true )
+        {
+	  const Event &event = sequence.getEvent(i);
+	  if ( event.position > position )
+	    break;
+	  midi_port.send(track.channel, event);
+	  if ( !sequence.nextEvent(i) )
+	  {
+	    events_remain[i] = false;
+	    break;
+	  }
 	}
       }
+      else
+	events_remain[i] = false;
     }
 
     position += 1;
@@ -163,7 +174,10 @@ public:
       visuals_changed = true;
     }
 
-    return events_remain;
+    for ( uint8_t i{1}; i < TRACKS; ++i )
+      if ( events_remain[i] )
+        return true;
+    return false;
   }
 };
 #endif

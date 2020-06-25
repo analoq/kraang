@@ -18,11 +18,7 @@ public:
     Tempo = 0xFE,
     Meter = 0xFF,
   } type;
-  union
-  {
-    uint8_t channel;
-    uint8_t param0;
-  };
+  uint8_t param0;
   uint8_t param1;
   uint8_t param2;
 

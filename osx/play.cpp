@@ -47,13 +47,13 @@ private:
   }
 
 public:
-  MacMIDIPort()
+  MacMIDIPort(const int destination)
   {
     MIDIClientCreate(CFSTR("analoq.kraang"), NULL, NULL, &MIDIClient);
     MIDIInputPortCreate(MIDIClient, CFSTR("Input port"), MidiHandler, this, &MIDIInPort);
     MIDIOutputPortCreate(MIDIClient, CFSTR("Output port"), &MIDIOutPort);
     //MIDISourceCreate(MIDIClient, CFSTR("kraang.output"), &MIDIOutput);
-    MIDIDest = MIDIGetDestination(1);
+    MIDIDest = MIDIGetDestination(destination);
   }
 
   ~MacMIDIPort()
@@ -61,12 +61,12 @@ public:
     MIDIClientDispose(MIDIClient);
   }
 
-  void send(const Event &event)
+  void send(uint8_t channel, const Event &event)
   {
     MIDIPacketList pktlist;
     MIDIPacket *packet = MIDIPacketListInit(&pktlist);
     unsigned char data[3];
-    data[0] = event.type | event.channel;
+    data[0] = event.type | channel;
     data[1] = event.param1;
     data[2] = event.param2;
     switch ( event.type )
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     cout << "Usage: main <file.mid>" << endl;
     return -1;
   }
-  MacMIDIPort midi_port;
+  MacMIDIPort midi_port{0};
   Sequence sequence;
   CTiming timing;
   CFile file{argv[1]};

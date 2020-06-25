@@ -86,15 +86,15 @@ public:
 	    case Event::NoteOff:
 	      param1 = fp.readByte();
 	      param2 = fp.readByte();
-	      sequence.addEvent(1, Event{track_time, Event::NoteOff, channel, param1, 0});
+	      sequence.addEvent(channel+1, Event{track_time, Event::NoteOff, 0, param1, 0});
 	      break;
 	    case Event::NoteOn:
 	      param1 = fp.readByte();
 	      param2 = fp.readByte();
 	      if (param2)
-		sequence.addEvent(1, Event{track_time, Event::NoteOn, channel, param1, param2});
+		sequence.addEvent(channel+1, Event{track_time, Event::NoteOn, 0, param1, param2});
 	      else
-		sequence.addEvent(1, Event{track_time, Event::NoteOff, channel, param1, 0});
+		sequence.addEvent(channel+1, Event{track_time, Event::NoteOff, 0, param1, 0});
 	      break;
 	    case Event::PolyAfter:
 	      param1 = fp.readByte();
@@ -109,13 +109,13 @@ public:
 		case 0x07: // volume
 		case 0x0A: // pan
 		case 0x40: // sustain pedal
-		  sequence.addEvent(1, Event{track_time, Event::Expression, channel, param1, param2});
+		  sequence.addEvent(channel+1, Event{track_time, Event::Expression, 0, param1, param2});
 		  break;
 	      }
 	      break;
 	    case Event::ProgChange:
 	      param1 = fp.readByte();
-	      sequence.addEvent(1, Event{track_time, Event::ProgChange, channel, param1, 0});
+	      sequence.addEvent(channel+1, Event{track_time, Event::ProgChange, 0, param1, 0});
 	      break;
 	    case Event::AfterTouch:
 	      param1 = fp.readByte();
@@ -123,7 +123,7 @@ public:
 	    case Event::PitchBend:
 	      param1 = fp.readByte();
 	      param2 = fp.readByte();
-	      sequence.addEvent(1, Event{track_time, Event::PitchBend, channel, param1, param2});
+	      sequence.addEvent(channel+1, Event{track_time, Event::PitchBend, 0, param1, param2});
 	      break;
 	    case Event::SysEx:
 	      switch ( channel )

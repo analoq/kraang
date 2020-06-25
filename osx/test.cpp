@@ -63,12 +63,12 @@ ostream& operator<<(ostream &o, const Event& event)
   switch ( event.type )
   {
     case Event::NoteOn:
-      o << static_cast<int>(event.channel) << ":NoteOn,"
+      o << "NoteOn,"
 	<< getNote(event.param1) << getOctave(event.param1) << ","
 	<< static_cast<int>(event.param2);
       break;
     case Event::NoteOff:
-      o << static_cast<int>(event.channel) << ":NoteOff,"
+      o << "NoteOff,"
 	<< getNote(event.param1) << getOctave(event.param1);
       break;
     case Event::Tempo:
@@ -118,9 +118,9 @@ public:
   {
   }
 
-  void send(const Event &event)
+  void send(const uint8_t channel, const Event &event)
   {
-    log << time << ":" << event;
+    log << time << ":" << static_cast<int>(channel) << ":" << event;
   }
 
   void setTime(uint32_t t)
@@ -368,7 +368,6 @@ TEST_CASE("Event", "[event]")
   Event event{1, Event::NoteOn, 2, 3, 4};
   REQUIRE(event.position == 1);
   REQUIRE(event.type == Event::NoteOn);
-  REQUIRE(event.channel == 2);
   REQUIRE(event.param1 == 3);
   REQUIRE(event.param2 == 4);
 
@@ -380,43 +379,44 @@ TEST_CASE("Event", "[event]")
 TEST_CASE("Sequence", "[sequence]")
 {
   Sequence sequence;
-  sequence.addEvent(1, Event{10, Event::NoteOn, 1, 60, 1});
-  sequence.addEvent(1, Event{20, Event::NoteOff, 2, 62, 2});
-  sequence.addEvent(1, Event{30, Event::NoteOn, 3, 63, 3});
+  sequence.addEvent(1, Event{10, Event::NoteOn, 0, 60, 1});
+  sequence.addEvent(1, Event{20, Event::NoteOff, 0, 62, 2});
+  sequence.addEvent(1, Event{30, Event::NoteOn, 0, 63, 3});
   sequence.returnToZero();
-  sequence.addEvent(1, Event{15, Event::NoteOn, 4, 61, 4});
-  sequence.addEvent(1, Event{35, Event::NoteOff, 5, 64, 5});
-  REQUIRE(sequence.getBuffer().traverse(1) == "10:1:NoteOn,C4,1\n"
-                                            "15:4:NoteOn,C#4,4\n"
-					    "20:2:NoteOff,D4\n"
-                                            "30:3:NoteOn,D#4,3\n"
-					    "35:5:NoteOff,E4\n");
+  sequence.addEvent(1, Event{15, Event::NoteOn, 0, 61, 4});
+  sequence.addEvent(1, Event{35, Event::NoteOff, 0, 64, 5});
+  REQUIRE(sequence.getBuffer().traverse(1) == "10:NoteOn,C4,1\n"
+                                            "15:NoteOn,C#4,4\n"
+					    "20:NoteOff,D4\n"
+                                            "30:NoteOn,D#4,3\n"
+					    "35:NoteOff,E4\n");
 }
 
 TEST_CASE("Sequence Seek", "[sequence]")
 {
   Sequence sequence;
   SeekResult result;
-  result = sequence.seek(4);
+  bool events_remain[17];
+  result = sequence.seek(4, events_remain);
   REQUIRE(result.position == 24*4*4);
   REQUIRE(result.numerator == 4);
   REQUIRE(result.denominator == 4);
   sequence.addEvent(0, Event{0, Event::Meter, 3, 4, 0});
   sequence.addEvent(0, Event{24*3, Event::Meter, 4, 4, 0});
   sequence.addEvent(0, Event{24*7, Event::Meter, 6, 8, 0});
-  result = sequence.seek(0);
+  result = sequence.seek(0, events_remain);
   REQUIRE(result.position == 0);
   REQUIRE(result.numerator == 3);
   REQUIRE(result.denominator == 4);
-  result = sequence.seek(1);
+  result = sequence.seek(1, events_remain);
   REQUIRE(result.position == 24*3);
   REQUIRE(result.numerator == 4);
   REQUIRE(result.denominator == 4);
-  result = sequence.seek(2);
+  result = sequence.seek(2, events_remain);
   REQUIRE(result.position == 24*7);
   REQUIRE(result.numerator == 6);
   REQUIRE(result.denominator == 8);
-  result = sequence.seek(3);
+  result = sequence.seek(3, events_remain);
   REQUIRE(result.position == 24*10);
   REQUIRE(result.numerator == 6);
   REQUIRE(result.denominator == 8);
@@ -429,28 +429,28 @@ TEST_CASE("MIDIFile", "[midifile]")
 		"0:Meter,4/4\n"
 		"1920:Tempo,749835\n"
 		"1920:Meter,3/4\n";
-  char trk1[] = "0:0:NoteOn,C4,20\n"
-		"100:0:NoteOff,C4\n"
-		"120:1:NoteOn,C#3,60\n"
-		"220:1:NoteOff,C#3\n"
-		"240:0:NoteOn,D4,30\n"
-		"340:0:NoteOff,D4\n"
-		"360:1:NoteOn,D#3,70\n"
-		"460:1:NoteOff,D#3\n"
-		"480:0:NoteOn,E4,40\n"
-		"580:0:NoteOff,E4\n"
-		"600:1:NoteOn,F3,80\n"
-		"700:1:NoteOff,F3\n"
-		"720:0:NoteOn,F#4,50\n"
-		"820:0:NoteOff,F#4\n"
-		"840:1:NoteOn,G3,90\n"
-		"940:1:NoteOff,G3\n"
-	        "1920:0:NoteOn,C4,100\n"
-		"2160:0:NoteOff,C4\n"
-		"2400:0:NoteOn,C#4,100\n"
-		"2640:0:NoteOff,C#4\n"
-		"2880:0:NoteOn,D4,100\n"
-		"3120:0:NoteOff,D4\n";
+   char trk1[] = "0:NoteOn,C4,20\n"
+		"100:NoteOff,C4\n"
+		"240:NoteOn,D4,30\n"
+		"340:NoteOff,D4\n"
+		"480:NoteOn,E4,40\n"
+		"580:NoteOff,E4\n"
+		"720:NoteOn,F#4,50\n"
+		"820:NoteOff,F#4\n"
+	        "1920:NoteOn,C4,100\n"
+		"2160:NoteOff,C4\n"
+		"2400:NoteOn,C#4,100\n"
+		"2640:NoteOff,C#4\n"
+		"2880:NoteOn,D4,100\n"
+		"3120:NoteOff,D4\n";
+  char trk2[] = "120:NoteOn,C#3,60\n"
+		"220:NoteOff,C#3\n"
+		"360:NoteOn,D#3,70\n"
+		"460:NoteOff,D#3\n"
+		"600:NoteOn,F3,80\n"
+		"700:NoteOff,F3\n"
+		"840:NoteOn,G3,90\n"
+		"940:NoteOff,G3\n";
 
   CFile file0 {"midi_0.mid"};
   REQUIRE(file0.isValid());
@@ -459,6 +459,7 @@ TEST_CASE("MIDIFile", "[midifile]")
   REQUIRE(sequence.getTicks() == 480);
   REQUIRE(sequence.getBuffer().traverse(0) == trk0);
   REQUIRE(sequence.getBuffer().traverse(1) == trk1);
+  REQUIRE(sequence.getBuffer().traverse(2) == trk2);
 
   CFile file1 {"midi_1.mid"};
   REQUIRE(file1.isValid());
@@ -467,6 +468,7 @@ TEST_CASE("MIDIFile", "[midifile]")
   REQUIRE(sequence.getTicks() == 480);
   REQUIRE(sequence.getBuffer().traverse(0) == trk0);
   REQUIRE(sequence.getBuffer().traverse(1) == trk1);
+  REQUIRE(sequence.getBuffer().traverse(2) == trk2);
 }
 
 TEST_CASE("Player Count", "[player]")
@@ -517,27 +519,27 @@ TEST_CASE("Player Play", "[player]")
     timing.delay(player.getDelay());
   }
   char result[] = "0:0:0:NoteOn,C4,20\n"
-		  "125000:100:0:NoteOff,C4\n"
-		  "150000:120:1:NoteOn,C#3,60\n"
-		  "275000:220:1:NoteOff,C#3\n"
-		  "300000:240:0:NoteOn,D4,30\n"
-		  "425000:340:0:NoteOff,D4\n"
-		  "450000:360:1:NoteOn,D#3,70\n"
-		  "575000:460:1:NoteOff,D#3\n"
-		  "600000:480:0:NoteOn,E4,40\n"
-		  "725000:580:0:NoteOff,E4\n"
-		  "750000:600:1:NoteOn,F3,80\n"
-		  "875000:700:1:NoteOff,F3\n"
-		  "900000:720:0:NoteOn,F#4,50\n"
-		  "1025000:820:0:NoteOff,F#4\n"
-		  "1050000:840:1:NoteOn,G3,90\n"
-		  "1175000:940:1:NoteOff,G3\n"
-		  "2400000:1920:0:NoteOn,C4,100\n"
-		  "2774880:2160:0:NoteOff,C4\n"
-		  "3149760:2400:0:NoteOn,C#4,100\n"
-		  "3524640:2640:0:NoteOff,C#4\n"
-		  "3899520:2880:0:NoteOn,D4,100\n"
-		  "4274400:3120:0:NoteOff,D4\n";
+		  "125000:0:100:NoteOff,C4\n"
+		  "150000:1:120:NoteOn,C#3,60\n"
+		  "275000:1:220:NoteOff,C#3\n"
+		  "300000:0:240:NoteOn,D4,30\n"
+		  "425000:0:340:NoteOff,D4\n"
+		  "450000:1:360:NoteOn,D#3,70\n"
+		  "575000:1:460:NoteOff,D#3\n"
+		  "600000:0:480:NoteOn,E4,40\n"
+		  "725000:0:580:NoteOff,E4\n"
+		  "750000:1:600:NoteOn,F3,80\n"
+		  "875000:1:700:NoteOff,F3\n"
+		  "900000:0:720:NoteOn,F#4,50\n"
+		  "1025000:0:820:NoteOff,F#4\n"
+		  "1050000:1:840:NoteOn,G3,90\n"
+		  "1175000:1:940:NoteOff,G3\n"
+		  "2400000:0:1920:NoteOn,C4,100\n"
+		  "2774880:0:2160:NoteOff,C4\n"
+		  "3149760:0:2400:NoteOn,C#4,100\n"
+		  "3524640:0:2640:NoteOff,C#4\n"
+		  "3899520:0:2880:NoteOn,D4,100\n"
+		  "4274400:0:3120:NoteOff,D4\n";
   REQUIRE(midi_port.getLog() == result);
 
   midi_port.clear();
@@ -554,11 +556,11 @@ TEST_CASE("Player Play", "[player]")
     timing.delay(player.getDelay());
   }
 
-  char seekrs[] = "4649280:1920:0:NoteOn,C4,100\n"
-		  "5024160:2160:0:NoteOff,C4\n"
-		  "5399040:2400:0:NoteOn,C#4,100\n"
-		  "5773920:2640:0:NoteOff,C#4\n"
-		  "6148800:2880:0:NoteOn,D4,100\n"
-		  "6523680:3120:0:NoteOff,D4\n";
+  char seekrs[] = "4649280:0:1920:NoteOn,C4,100\n"
+		  "5024160:0:2160:NoteOff,C4\n"
+		  "5399040:0:2400:NoteOn,C#4,100\n"
+		  "5773920:0:2640:NoteOff,C#4\n"
+		  "6148800:0:2880:NoteOn,D4,100\n"
+		  "6523680:0:3120:NoteOff,D4\n";
   REQUIRE(midi_port.getLog() == seekrs); 
 }
