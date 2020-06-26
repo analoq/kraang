@@ -22,7 +22,6 @@ private:
   uint32_t delay;
   Sequence &sequence;
   MIDIPort &midi_port;
-  bool events_remain[TRACKS];
   bool visuals_changed;
 
   void setTempo(uint32_t t)
@@ -89,24 +88,28 @@ public:
     return false;
   }
 
-  void setEventsRemain()
-  {
-    for ( uint8_t i{0}; i < TRACKS; ++i )
-      events_remain[i] = true;
-  }
-
   void returnToZero()
   {
     position = 0;
     measure = 0;
     beat = 0;
-    setEventsRemain();
+    for ( uint8_t i{0}; i < TRACKS; ++i )
+    {
+      Track &track {sequence.getTrack(i)};
+      track.position = position;
+      track.events_remain = true;
+    }
   }
 
   void seek(uint16_t m)
   {
-    SeekResult result {sequence.seek(m, events_remain)};
+    SeekResult result {sequence.seek(m)};
     position = result.position;
+    for ( uint8_t i{0}; i < TRACKS; ++i )
+    {
+      Track &track {sequence.getTrack(i)};
+      track.position = position;
+    }
     measure = m;
     beat = 0;
     setTempo(result.tempo);
@@ -142,27 +145,28 @@ public:
     // music tracks
     for ( uint8_t i{1}; i < TRACKS; ++i )
     {
-      if ( sequence.hasEvents(i) && events_remain[i] )
+      Track &track {sequence.getTrack(i)};
+      if ( sequence.hasEvents(i) && track.events_remain )
       {
-	const Track &track {sequence.getTrack(i)};
         while ( true )
         {
 	  const Event &event = sequence.getEvent(i);
-	  if ( event.position > position )
+	  if ( event.position > track.position )
 	    break;
 	  midi_port.send(track.channel, event);
 	  if ( !sequence.nextEvent(i) )
 	  {
-	    events_remain[i] = false;
+	    track.events_remain = false;
 	    break;
 	  }
 	}
+	track.position ++;
       }
       else
-	events_remain[i] = false;
+	track.events_remain = false;
     }
 
-    position += 1;
+    position ++;
     if ( position % ticks_per_beat == 0 )
     {
       beat ++;
@@ -175,7 +179,7 @@ public:
     }
 
     for ( uint8_t i{1}; i < TRACKS; ++i )
-      if ( events_remain[i] )
+      if ( sequence.getTrack(i).events_remain )
         return true;
     return false;
   }

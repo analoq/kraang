@@ -17,10 +17,12 @@ struct SeekResult
 
 struct Track
 {
+  uint32_t position;
   uint8_t channel;
   uint8_t length;
+  bool events_remain;
 
-  Track() : channel{0}, length{0}
+  Track() : position{0}, channel{0}, length{0}, events_remain{true}
   {
   }
 };
@@ -76,9 +78,14 @@ public:
     ticks = 24;
   }
 
-  const Track &getTrack(uint8_t t) const
+  Track &getTrack(const uint8_t t)
   {
     return track[t];
+  }
+
+  void setTrackLength(const uint8_t t, const uint8_t l)
+  {
+    track[t].length = l;
   }
 
   uint16_t getTicks() const
@@ -97,19 +104,19 @@ public:
       buffer.returnToZero(track);
   }
 
-  const SeekResult seek(const uint16_t measure, bool events_remain[TRACKS])
+  const SeekResult seek(const uint16_t measure)
   {
     SeekResult result {getPosition(measure)};
-    for ( uint8_t track {0}; track < TRACKS; ++track )
+    for ( uint8_t t {0}; t < TRACKS; ++t )
     {
-      buffer.seek(track, Event{result.position, Event::None, 0, 0, 0});
-      if ( buffer.notUndefined(track) )
+      buffer.seek(t, Event{result.position, Event::None, 0, 0, 0});
+      if ( buffer.notUndefined(t) )
       {
-	const Event &event {buffer.get(track)};
-	events_remain[track] = event.position >= result.position;
+	const Event &event {buffer.get(t)};
+	track[t].events_remain = event.position >= result.position;
       }
       else
-	events_remain[track] = false;
+	track[t].events_remain = false;
     }
     return result;
   }
