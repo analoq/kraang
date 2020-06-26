@@ -98,6 +98,11 @@ public:
     ticks = t;
   }
 
+  void returnToZero(const uint8_t track)
+  {
+    buffer.returnToZero(track);
+  }
+
   void returnToZero()
   {
     for ( uint8_t track {0}; track < TRACKS; ++track )

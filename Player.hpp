@@ -24,6 +24,16 @@ private:
   MIDIPort &midi_port;
   bool visuals_changed;
 
+public:
+  Player(Sequence &s, MIDIPort &p)
+    : position{0}, sequence{s}, midi_port{p}
+  {
+    setTempo(500000);
+    setMeter(4,4);
+    returnToZero();
+    visuals_changed = true;
+  }
+
   void setTempo(uint32_t t)
   {
     tempo = t;
@@ -36,15 +46,6 @@ private:
     meter_n = n;
     meter_d = d;
     ticks_per_beat = 4 * sequence.getTicks() / d;
-    visuals_changed = true;
-  }
-public:
-  Player(Sequence &s, MIDIPort &p)
-    : position{0}, sequence{s}, midi_port{p}
-  {
-    setTempo(500000);
-    setMeter(4,4);
-    returnToZero();
     visuals_changed = true;
   }
 
@@ -160,11 +161,18 @@ public:
 	    break;
 	  }
 	}
-	track.position ++;
       }
       else
 	track.events_remain = false;
-    }
+
+      track.position ++;
+      if ( track.length && track.position == track.length*sequence.getTicks() )
+      {
+	track.position = 0;
+	track.events_remain = true;
+	sequence.returnToZero(i);
+      }
+   }
 
     position ++;
     if ( position % ticks_per_beat == 0 )

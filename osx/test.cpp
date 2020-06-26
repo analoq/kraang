@@ -563,3 +563,37 @@ TEST_CASE("Player Play", "[player]")
 		  "6523680:0:3120:NoteOff,D4\n";
   REQUIRE(midi_port.getLog() == seekrs); 
 }
+
+TEST_CASE("Player loop", "[player]")
+{
+  TestMIDIPort midi_port;
+  TestTiming timing;
+  Sequence sequence;
+  Player player{sequence, midi_port};
+  player.setTempo(600000);
+  Track &track {sequence.getTrack(1)};
+  track.length = 4;
+  sequence.addEvent(1, Event{24*0, Event::NoteOn, 0, 60, 30});
+  sequence.addEvent(1, Event{24*1, Event::NoteOn, 0, 60, 40});
+  sequence.addEvent(1, Event{24*2, Event::NoteOn, 0, 60, 50});
+  sequence.addEvent(1, Event{24*3, Event::NoteOn, 0, 60, 60});
+  sequence.returnToZero();
+  
+  char result[] = "0:0:0:NoteOn,C4,30\n"
+		  "600000:0:24:NoteOn,C4,40\n"
+		  "1200000:0:48:NoteOn,C4,50\n"
+		  "1800000:0:72:NoteOn,C4,60\n"
+		  "2400000:0:0:NoteOn,C4,30\n"
+		  "3000000:0:24:NoteOn,C4,40\n"
+		  "3600000:0:48:NoteOn,C4,50\n"
+		  "4200000:0:72:NoteOn,C4,60\n"
+		  "4800000:0:0:NoteOn,C4,30\n";
+  for ( int i{0}; i < 24*9; i ++ )
+  {
+    midi_port.setTime(timing.getMicroseconds());
+    player.tick();
+    timing.delay(player.getDelay());
+  }
+
+  REQUIRE(midi_port.getLog() == result);
+}
