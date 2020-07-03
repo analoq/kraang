@@ -1,7 +1,12 @@
 #include "../Player.hpp"
 #include <CoreMIDI/CoreMIDI.h>
+#include <iostream>
 
+using namespace std;
 
+static void MidiHandler(const MIDIPacketList *pktlist, void *readProcRefCon,
+                        void *srcConnRefCon);
+ 
 class MacMIDIPort : public MIDIPort
 {
 private:
@@ -9,21 +14,18 @@ private:
   MIDIPortRef MIDIInPort;
   MIDIPortRef MIDIOutPort;
   MIDIEndpointRef MIDIDest;
-
-  static void MidiHandler(const MIDIPacketList *pktlist, void *readProcRefCon,
-                          void *srcConnRefCon)
-  {
-    const Byte *message = pktlist->packet[0].data;
-  }
+  MIDIEndpointRef MIDISource;
 
 public:
-  MacMIDIPort(const int destination)
+  MacMIDIPort(const int port_num)
   {
     MIDIClientCreate(CFSTR("analoq.kraang"), NULL, NULL, &MIDIClient);
-    MIDIInputPortCreate(MIDIClient, CFSTR("Input port"), MidiHandler, this, &MIDIInPort);
+    MIDIInputPortCreate(MIDIClient, CFSTR("Input port"), MidiHandler, NULL, &MIDIInPort);
     MIDIOutputPortCreate(MIDIClient, CFSTR("Output port"), &MIDIOutPort);
     //MIDISourceCreate(MIDIClient, CFSTR("kraang.output"), &MIDIOutput);
-    MIDIDest = MIDIGetDestination(destination);
+    MIDIDest = MIDIGetDestination(port_num);
+    MIDISource = MIDIGetSource(port_num);
+    MIDIPortConnectSource(MIDIInPort, MIDISource, NULL);
   }
 
   ~MacMIDIPort()

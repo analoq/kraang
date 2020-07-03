@@ -20,9 +20,11 @@ struct Track
   uint32_t position;
   uint8_t channel;
   uint8_t length;
+  bool record;
   bool events_remain;
 
-  Track() : position{0}, channel{0}, length{0}, events_remain{true}
+  Track() : position{0}, channel{0}, length{0},
+    events_remain{true}, record{false}
   {
   }
 };
@@ -146,9 +148,18 @@ public:
     return false;
   }
 
-  void addEvent(const uint8_t track, const Event event)
+  void addEvent(const uint8_t track, const Event &event)
   {
     buffer.insert(track, event);
+  }
+
+  void receiveEvent(const uint8_t t, Event event)
+  {
+    if ( track[t].record )
+    {
+      event.position = track[t].position;
+      buffer.insert(t, event);
+    }
   }
 
   #ifdef CATCH_CONFIG_MAIN

@@ -9,6 +9,12 @@
 
 using namespace std;
 
+static void MidiHandler(const MIDIPacketList *pktlist, void *readProcRefCon,
+			void *srcConnRefCon)
+{
+  cout << "Input!" << endl;
+}
+
 int main(int argc, char *argv[])
 {
   if ( argc != 2 )
@@ -16,7 +22,7 @@ int main(int argc, char *argv[])
     cout << "Usage: main <file.mid>" << endl;
     return -1;
   }
-  MacMIDIPort midi_port{0};
+  MacMIDIPort midi_port{1};
   Sequence sequence;
   CTiming timing;
   CFile file{argv[1]};

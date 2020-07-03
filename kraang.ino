@@ -25,9 +25,9 @@ public:
     reset();
   }
 
-  void send(const Event &event)
+  void send(const uint8_t channel, const Event &event)
   {
-    Serial1.write(event.type | event.channel);
+    Serial1.write(event.type | channel);
     Serial1.write(event.param1);
     if ( event.type != Event::ProgChange )
       Serial1.write(event.param2);
