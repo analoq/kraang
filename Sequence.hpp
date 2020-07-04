@@ -153,13 +153,10 @@ public:
     buffer.insert(track, event);
   }
 
-  void receiveEvent(const uint8_t t, Event event)
+  void receiveEvent(const uint8_t t, const Event event)
   {
     if ( track[t].record )
-    {
-      event.position = track[t].position;
       buffer.insert(t, event);
-    }
   }
 
   #ifdef CATCH_CONFIG_MAIN

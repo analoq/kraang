@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     cout << "Usage: main <file.mid>" << endl;
     return -1;
   }
-  MacMIDIPort midi_port{1};
+  MacMIDIPort midi_port{3, 0};
   Sequence sequence;
   CTiming timing;
   CFile file{argv[1]};

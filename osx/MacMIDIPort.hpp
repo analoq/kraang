@@ -17,14 +17,14 @@ private:
   MIDIEndpointRef MIDISource;
 
 public:
-  MacMIDIPort(const int port_num)
+  MacMIDIPort(const int out_port, const int in_port)
   {
     MIDIClientCreate(CFSTR("analoq.kraang"), NULL, NULL, &MIDIClient);
-    MIDIInputPortCreate(MIDIClient, CFSTR("Input port"), MidiHandler, NULL, &MIDIInPort);
+    MIDIInputPortCreate(MIDIClient, CFSTR("Input port"), MidiHandler, this, &MIDIInPort);
     MIDIOutputPortCreate(MIDIClient, CFSTR("Output port"), &MIDIOutPort);
     //MIDISourceCreate(MIDIClient, CFSTR("kraang.output"), &MIDIOutput);
-    MIDIDest = MIDIGetDestination(port_num);
-    MIDISource = MIDIGetSource(port_num);
+    MIDIDest = MIDIGetDestination(out_port);
+    MIDISource = MIDIGetSource(in_port);
     MIDIPortConnectSource(MIDIInPort, MIDISource, NULL);
   }
 
