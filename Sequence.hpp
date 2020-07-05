@@ -20,11 +20,18 @@ struct Track
   uint32_t position;
   uint8_t channel;
   uint8_t length;
-  bool record;
   bool events_remain;
+  enum
+  {
+    ON,
+    OFF,
+    TURNING_ON,
+    TURNING_OFF
+  } state;
+  bool played;
 
   Track() : position{0}, channel{0}, length{0},
-    events_remain{true}, record{false}
+    events_remain{true}, state{ON}, played{false}
   {
   }
 };
@@ -151,12 +158,6 @@ public:
   void addEvent(const uint8_t track, const Event &event)
   {
     buffer.insert(track, event);
-  }
-
-  void receiveEvent(const uint8_t t, const Event event)
-  {
-    if ( track[t].record )
-      buffer.insert(t, event);
   }
 
   #ifdef CATCH_CONFIG_MAIN

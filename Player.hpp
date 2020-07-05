@@ -2,12 +2,7 @@
 #define PLAYER_HPP
 #include <math.h>
 #include "Sequence.hpp"
-
-class MIDIPort
-{
-public:
-  virtual void send(const uint8_t channel, const Event &event) = 0;
-};
+#include "MIDIPort.hpp"
 
 class Player
 {
@@ -119,60 +114,50 @@ public:
 
   bool tick()
   {
-    // tempo track
-    if ( sequence.hasEvents(TEMPO_TRACK) )
-    {
-      while ( true )
-      {
-	const Event &event = sequence.getEvent(TEMPO_TRACK);
-	if ( event.position > position )
-	  break;
-	switch ( event.type )
-	{
-	  case Event::Tempo:
-	    setTempo(event.getTempo());
-	    break;
-	  case Event::Meter:
-	    setMeter(event.param0, event.param1);
-	    break;
-	  default:
-	    break;
-	}
-	if ( !sequence.nextEvent(TEMPO_TRACK) )
-	  break;
-      }
-    }
- 
-    // music tracks
-    for ( uint8_t i{1}; i < TRACKS; ++i )
+    for ( uint8_t i{0}; i < TRACKS; ++i )
     {
       Track &track {sequence.getTrack(i)};
-      if ( sequence.hasEvents(i) && track.events_remain )
+
+      if ( track.state == Track::ON )
       {
-        while ( true )
-        {
-	  const Event &event = sequence.getEvent(i);
-	  if ( event.position > track.position )
-	    break;
-	  midi_port.send(track.channel, event);
-	  if ( !sequence.nextEvent(i) )
+	if ( sequence.hasEvents(i) && track.events_remain )
+	{
+	  while ( true )
 	  {
-	    track.events_remain = false;
-	    break;
+	    const Event &event = sequence.getEvent(i);
+	    if ( event.position > track.position )
+	      break;
+	    switch ( event.type )
+	    {
+	      case Event::Tempo:
+		setTempo(event.getTempo());
+		break;
+	      case Event::Meter:
+		setMeter(event.param0, event.param1);
+		break;
+	      default:
+		track.played = true;
+		midi_port.send(track.channel, event);
+	    }
+	    if ( !sequence.nextEvent(i) )
+	    {
+	      track.events_remain = false;
+	      break;
+	    }
 	  }
 	}
-      }
-      else
-	track.events_remain = false;
+	else
+	  track.events_remain = false;
 
-      track.position ++;
-      if ( track.length && track.position == track.length*sequence.getTicks() )
-      {
-	track.position = 0;
-	track.events_remain = true;
-	sequence.returnToZero(i);
+	track.position ++;
+	if ( track.length && track.position == track.length*sequence.getTicks() )
+	{
+	  track.position = 0;
+	  track.events_remain = true;
+	  sequence.returnToZero(i);
+	}
       }
-   }
+    }
 
     position ++;
     if ( position % ticks_per_beat == 0 )
