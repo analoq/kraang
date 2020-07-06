@@ -209,6 +209,7 @@ void ui_choose_file()
   Serial.print("Delay: ");
   Serial.println(player.getDelay());
 
+  player.play();
   start_timer();
   
   lcd.clear();

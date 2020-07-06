@@ -18,16 +18,17 @@ public:
     : player{p}, sequence{s}, midi_port{mp}, quantization{6}, record_track{0}
   {
     // create metronome track
+    const uint32_t ticks {sequence.getTicks()};
     sequence.setTrackLength(metronome_track, 4);
     sequence.getTrack(metronome_track).channel = 0;
-    sequence.addEvent(metronome_track, Event{24*0, Event::NoteOn, 0, 60, 110});
-    sequence.addEvent(metronome_track, Event{24*0 + 12, Event::NoteOff, 0, 60, 0});
-    sequence.addEvent(metronome_track, Event{24*1, Event::NoteOn, 0, 60, 80});
-    sequence.addEvent(metronome_track, Event{24*1 + 12, Event::NoteOff, 0, 60, 0});
-    sequence.addEvent(metronome_track, Event{24*2, Event::NoteOn, 0, 60, 80});
-    sequence.addEvent(metronome_track, Event{24*2 + 12, Event::NoteOff, 0, 60, 0});
-    sequence.addEvent(metronome_track, Event{24*3, Event::NoteOn, 0, 60, 80});
-    sequence.addEvent(metronome_track, Event{24*3 + 12, Event::NoteOff, 0, 60, 0});
+    sequence.addEvent(metronome_track, Event{ticks*0, Event::NoteOn, 0, 60, 110});
+    sequence.addEvent(metronome_track, Event{ticks*0 + ticks/4, Event::NoteOff, 0, 60, 0});
+    sequence.addEvent(metronome_track, Event{ticks*1, Event::NoteOn, 0, 60, 80});
+    sequence.addEvent(metronome_track, Event{ticks*1 + ticks/4, Event::NoteOff, 0, 60, 0});
+    sequence.addEvent(metronome_track, Event{ticks*2, Event::NoteOn, 0, 60, 80});
+    sequence.addEvent(metronome_track, Event{ticks*2 + ticks/4, Event::NoteOff, 0, 60, 0});
+    sequence.addEvent(metronome_track, Event{ticks*3, Event::NoteOn, 0, 60, 80});
+    sequence.addEvent(metronome_track, Event{ticks*3 + ticks/4, Event::NoteOff, 0, 60, 0});
     // default remaining tracks to 2 bar lengths
     for ( uint8_t i{1}; i < TRACKS; ++i )
       sequence.setTrackLength(i, 8);

@@ -85,6 +85,8 @@ public:
   void stop()
   {
     playing = false;
+    for ( uint8_t c {0}; c < 16; ++c )
+      midi_port.send(c, Event::allNotesOff());
   }
 
   bool isPlaying() const

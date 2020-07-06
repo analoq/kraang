@@ -62,12 +62,13 @@ int main(int argc, char *argv[])
     mvprintw(0, 1, "Ticks: %d", sequence.getTicks());
     mvprintw(1, 1, "Tempo: %f", player.getBpm() / 10.0);
     mvprintw(2, 1, "Quant: 1/%d", 4 * sequence.getTicks() / recorder.getQuantization());
-    mvprintw(0, 20, "Rec Track: %d", recorder.getRecordTrack());
+    mvprintw(3, 1, "Metro: %s", player.isMetronomeOn() ? "ON " : "OFF");
+    mvprintw(0, 20, "RcrTrk: %d", recorder.getRecordTrack());
     if ( MidiInput )
-      mvprintw(1, 20, "MIDI: X");
+      mvprintw(1, 20, "MIDIin: X");
     else
-      mvprintw(1, 20, "MIDI: -");
-    mvprintw(2, 20, player.isPlaying() ? "PLAY" : "STOP");
+      mvprintw(1, 20, "MIDIin: -");
+    mvprintw(2, 20, "Status: %s", player.isPlaying() ? "PLAY" : "STOP");
     MidiInput = false;
     for ( uint8_t i{0}; i < TRACKS; i ++ )
     {
@@ -90,7 +91,7 @@ int main(int argc, char *argv[])
 	default:
 	  state = "----";
       }
-      mvprintw(4 + i, 0, "Trk %02d: [%c] C%02d L%02d P%03d S:%s",
+      mvprintw(5 + i, 0, "Trk %02d: [%c] C%02d L%02d P%03d S:%s",
 		i, track.played ? 'X':' ', track.channel, track.length, track.position, state);
       track.played = false;
     }
@@ -137,5 +138,6 @@ int main(int argc, char *argv[])
     }
   }
 
+  player.stop();
   endwin();
 }

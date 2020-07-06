@@ -31,6 +31,11 @@ public:
   {
   }
 
+  const static Event allNotesOff()
+  {
+    return Event{0, Event::Expression, 0, 0x78, 0x00};
+  }
+
   const uint32_t getTempo() const
   {
     return (param0 << 16 | param1 << 8 | param0);
