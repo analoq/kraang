@@ -11,5 +11,5 @@ test: osx/test.cpp Buffer.hpp Sequence.hpp MIDIFile.hpp Player.hpp Event.hpp
 play: osx/play.cpp osx/MacMIDIPort.hpp Buffer.hpp Sequence.hpp MIDIFile.hpp Player.hpp Event.hpp
 	g++ -g -std=c++11 -framework CoreFoundation -framework CoreMIDI -o play osx/play.cpp
 
-record: osx/record.cpp  Buffer.hpp Sequence.hpp MIDIFile.hpp Player.hpp Event.hpp
+record: osx/record.cpp  Buffer.hpp Sequence.hpp MIDIFile.hpp Player.hpp Event.hpp Recorder.hpp
 	g++ -g -std=c++11 -framework CoreFoundation -framework CoreMIDI -lcurses -o record osx/record.cpp

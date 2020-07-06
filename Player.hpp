@@ -17,11 +17,13 @@ private:
   uint32_t delay;
   Sequence &sequence;
   MIDIPort &midi_port;
+  bool playing;
+  bool metronome;
   bool visuals_changed;
 
 public:
   Player(Sequence &s, MIDIPort &p)
-    : position{0}, sequence{s}, midi_port{p}
+    : position{0}, sequence{s}, midi_port{p}, playing{false}, metronome{true}
   {
     setTempo(500000);
     setMeter(4,4);
@@ -74,6 +76,32 @@ public:
     return beat;
   }
 
+  void play()
+  {
+    returnToZero();
+    playing = true;
+  }
+
+  void stop()
+  {
+    playing = false;
+  }
+
+  bool isPlaying() const
+  {
+    return playing;
+  }
+
+  void setMetronome(bool m)
+  {
+    metronome = m;
+  }
+
+  bool isMetronomeOn() const
+  {
+    return metronome;
+  }
+
   const bool visualsChanged()
   {
     if ( visuals_changed )
@@ -90,11 +118,7 @@ public:
     measure = 0;
     beat = 0;
     for ( uint8_t i{0}; i < TRACKS; ++i )
-    {
-      Track &track {sequence.getTrack(i)};
-      track.position = position;
-      track.events_remain = true;
-    }
+      sequence.returnToZero(i);
   }
 
   void seek(uint16_t m)
@@ -114,11 +138,13 @@ public:
 
   bool tick()
   {
+    if ( !playing )
+      return true;
     for ( uint8_t i{0}; i < TRACKS; ++i )
     {
       Track &track {sequence.getTrack(i)};
 
-      if ( track.state == Track::ON )
+      if ( track.state == Track::ON || track.state == Track::TURNING_OFF )
       {
 	if ( sequence.hasEvents(i) && track.events_remain )
 	{
@@ -136,8 +162,11 @@ public:
 		setMeter(event.param0, event.param1);
 		break;
 	      default:
-		track.played = true;
-		midi_port.send(track.channel, event);
+		if ( i != 0 || metronome )
+		{
+		  track.played = true;
+		  midi_port.send(track.channel, event);
+		}
 	    }
 	    if ( !sequence.nextEvent(i) )
 	    {
@@ -167,6 +196,15 @@ public:
       {
         beat = 0;
         measure ++;
+	// flip tracks on or off
+	for ( uint8_t i{1}; i < TRACKS; ++i )
+	{
+	  Track &track {sequence.getTrack(i)};
+	  if ( track.state == Track::TURNING_ON )
+	    track.state = Track::ON;
+	  else if ( track.state == Track::TURNING_OFF )
+	    track.state = Track::OFF;
+	}
       }
       visuals_changed = true;
     }

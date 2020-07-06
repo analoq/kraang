@@ -382,7 +382,7 @@ TEST_CASE("Sequence", "[sequence]")
   sequence.addEvent(1, Event{10, Event::NoteOn, 0, 60, 1});
   sequence.addEvent(1, Event{20, Event::NoteOff, 0, 62, 2});
   sequence.addEvent(1, Event{30, Event::NoteOn, 0, 63, 3});
-  sequence.returnToZero();
+  sequence.returnToZero(1);
   sequence.addEvent(1, Event{15, Event::NoteOn, 0, 61, 4});
   sequence.addEvent(1, Event{35, Event::NoteOff, 0, 64, 5});
   REQUIRE(sequence.getBuffer().traverse(1) == "10:NoteOn,C4,1\n"
@@ -477,7 +477,7 @@ TEST_CASE("Player Count", "[player]")
   Player player{sequence, midi_port};
   sequence.addEvent(0, Event{0, Event::Meter, 3, 4, 0});
   sequence.addEvent(0, Event{24*3, Event::Meter, 6, 8, 0});
-  sequence.returnToZero();
+  player.play();
 
   REQUIRE(player.getMeasure() == 0);
   REQUIRE(player.getBeat() == 0);
@@ -511,6 +511,7 @@ TEST_CASE("Player Play", "[player]")
   MIDIFile midi_file{file};
   midi_file.import(sequence);
   Player player{sequence, midi_port};
+  player.play();
   for ( int i{0}; i < 480*7; i ++ )
   {
     midi_port.setTime(timing.getMicroseconds());
@@ -577,7 +578,7 @@ TEST_CASE("Player loop", "[player]")
   sequence.addEvent(1, Event{24*1, Event::NoteOn, 0, 60, 40});
   sequence.addEvent(1, Event{24*2, Event::NoteOn, 0, 60, 50});
   sequence.addEvent(1, Event{24*3, Event::NoteOn, 0, 60, 60});
-  sequence.returnToZero();
+  player.play();
   
   char result[] = "0:0:0:NoteOn,C4,30\n"
 		  "600000:0:24:NoteOn,C4,40\n"

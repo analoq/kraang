@@ -1,19 +1,21 @@
 #ifndef RECORDER_HPP
 #define RECORDER_HPP
+#include "Player.hpp"
 #include "Sequence.hpp"
 #include "MIDIPort.hpp"
 
 class Recorder
 {
 private:
+  const Player &player;
   Sequence &sequence;
   MIDIPort &midi_port;
   uint8_t quantization;
   uint8_t record_track;
   const uint8_t metronome_track {0};
 public:
-  Recorder(Sequence &s, MIDIPort &p)
-    : sequence{s}, midi_port{p}, quantization{6}, record_track{0}
+  Recorder(const Player &p, Sequence &s, MIDIPort &mp)
+    : player{p}, sequence{s}, midi_port{mp}, quantization{6}, record_track{0}
   {
     // create metronome track
     sequence.setTrackLength(metronome_track, 4);
@@ -26,7 +28,6 @@ public:
     sequence.addEvent(metronome_track, Event{24*2 + 12, Event::NoteOff, 0, 60, 0});
     sequence.addEvent(metronome_track, Event{24*3, Event::NoteOn, 0, 60, 80});
     sequence.addEvent(metronome_track, Event{24*3 + 12, Event::NoteOff, 0, 60, 0});
-    sequence.returnToZero();
     // default remaining tracks to 2 bar lengths
     for ( uint8_t i{1}; i < TRACKS; ++i )
       sequence.setTrackLength(i, 8);
@@ -40,6 +41,18 @@ public:
   void setRecordTrack(const uint8_t t)
   {
     record_track = t;
+  }
+
+  void toggleTrack(const uint8_t t)
+  {
+    Track &track {sequence.getTrack(t)};
+    if ( track.state == Track::ON )
+      track.state = Track::TURNING_OFF;
+    else if ( track.state == Track::OFF )
+    {
+      track.state = Track::TURNING_ON;
+      sequence.returnToZero(t);
+    }
   }
 
   uint8_t getQuantization() const
@@ -61,7 +74,7 @@ public:
   {
     const Track &track {sequence.getTrack(record_track)};
     event.position = track.position;
-    //if ( track.record )
+    if ( player.isPlaying() && (track.state == Track::ON || track.state == Track::TURNING_OFF) )
     {
       switch ( event.type )
       {
@@ -78,8 +91,8 @@ public:
 	default:
 	  break;
       }
-      midi_port.send(track.channel, event);
     }
+    midi_port.send(track.channel, event);
   }
 };
 #endif

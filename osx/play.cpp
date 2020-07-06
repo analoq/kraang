@@ -12,7 +12,6 @@ using namespace std;
 static void MidiHandler(const MIDIPacketList *pktlist, void *readProcRefCon,
 			void *srcConnRefCon)
 {
-  cout << "Input!" << endl;
 }
 
 int main(int argc, char *argv[])
@@ -32,6 +31,7 @@ int main(int argc, char *argv[])
   cout << "Ticks: " << sequence.getTicks() << endl;
   cin.ignore(1);
   int count = 0;
+  player.play();
   while (player.tick())
   {
     uint32_t start {timing.getMicroseconds()};

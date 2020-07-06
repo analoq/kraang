@@ -12,7 +12,7 @@ bool MidiInput {false};
 MacMIDIPort midi_port{0, 1};
 Sequence sequence;
 Player player{sequence, midi_port};
-Recorder recorder{sequence, midi_port};
+Recorder recorder{player, sequence, midi_port};
 
 static void MidiHandler(const MIDIPacketList *pktlist, void *readProcRefCon,
 			void *srcConnRefCon)
@@ -67,12 +67,31 @@ int main(int argc, char *argv[])
       mvprintw(1, 20, "MIDI: X");
     else
       mvprintw(1, 20, "MIDI: -");
+    mvprintw(2, 20, player.isPlaying() ? "PLAY" : "STOP");
     MidiInput = false;
     for ( uint8_t i{0}; i < TRACKS; i ++ )
     {
       Track &track {sequence.getTrack(i)};
-      mvprintw(4 + i, 0, "Trk %02d: [%c] C%02d L%02d P%03d S:--",
-		i, track.played ? 'X':' ', track.channel, track.length, track.position);
+      char *state;
+      switch ( track.state )
+      {
+	case Track::ON:
+	  state = " ON ";
+	  break;
+	case Track::OFF:
+	  state = " OFF";
+	  break;
+	case Track::TURNING_ON:
+	  state = ">ON ";
+	  break;
+	case Track::TURNING_OFF:
+	  state = ">OFF";
+	  break;
+	default:
+	  state = "----";
+      }
+      mvprintw(4 + i, 0, "Trk %02d: [%c] C%02d L%02d P%03d S:%s",
+		i, track.played ? 'X':' ', track.channel, track.length, track.position, state);
       track.played = false;
     }
     refresh();
@@ -92,6 +111,27 @@ int main(int argc, char *argv[])
 	recorder.setRecordTrack(4);
 	break;
       case 'q':
+	recorder.toggleTrack(1);
+	break;
+      case 'w':
+	recorder.toggleTrack(2);
+	break;
+      case 'e':
+	recorder.toggleTrack(3);
+	break;
+      case 'r':
+	recorder.toggleTrack(4);
+	break;
+      case ' ':
+	if ( player.isPlaying() )
+	  player.stop();
+	else
+	  player.play();
+	break;
+      case 'm':
+	player.setMetronome(!player.isMetronomeOn());
+	break;
+      case 'x':
 	done = true;
 	break;
     }

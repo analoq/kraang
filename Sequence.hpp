@@ -107,15 +107,11 @@ public:
     ticks = t;
   }
 
-  void returnToZero(const uint8_t track)
+  void returnToZero(const uint8_t t)
   {
-    buffer.returnToZero(track);
-  }
-
-  void returnToZero()
-  {
-    for ( uint8_t track {0}; track < TRACKS; ++track )
-      buffer.returnToZero(track);
+    track[t].position = 0;
+    track[t].events_remain = true;
+    buffer.returnToZero(t);
   }
 
   const SeekResult seek(const uint16_t measure)

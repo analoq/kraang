@@ -181,7 +181,6 @@ public:
       }
     }
     }
-    sequence.returnToZero();
     return 0;
   }
 };
