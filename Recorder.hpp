@@ -15,7 +15,7 @@ private:
   const uint8_t metronome_track {0};
 public:
   Recorder(const Player &p, Sequence &s, MIDIPort &mp)
-    : player{p}, sequence{s}, midi_port{mp}, quantization{6}, record_track{0}
+    : player{p}, sequence{s}, midi_port{mp}, quantization{6}, record_track{1}
   {
     // create metronome track
     const uint32_t ticks {sequence.getTicks()};
@@ -86,7 +86,6 @@ public:
 	  sequence.addEvent(record_track, event);
 	  break;
 	case Event::NoteOff:
-	  event.param2 = 0;
 	  sequence.addEvent(record_track, event);
 	  break;
 	default:

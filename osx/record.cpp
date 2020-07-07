@@ -14,14 +14,39 @@ Sequence sequence;
 Player player{sequence, midi_port};
 Recorder recorder{player, sequence, midi_port};
 
-static void MidiHandler(const MIDIPacketList *pktlist, void *readProcRefCon,
+static void MidiHandler(const MIDIPacketList *packetList, void *readProcRefCon,
 			void *srcConnRefCon)
 {
-  MacMIDIPort &port {*reinterpret_cast<MacMIDIPort *>(readProcRefCon)};
-  const uint8_t *message {pktlist->packet[0].data};
+  //MacMIDIPort &port {*reinterpret_cast<MacMIDIPort *>(readProcRefCon)};
+  const MIDIPacket *packet = packetList->packet;
+  uint8_t lastStatus {0x00};
+  for (int i = 0; i < packetList->numPackets; ++i)
+  {
+    const uint8_t *message {packet->data};
+    for ( int j = 0; j < packet->length; )
+    {
+      uint8_t status {message[j++]};
+      uint8_t param1;
+      uint8_t param2;
+      if ( message[0] & 0x80 == 0 )
+      {
+	param1 = status;
+	status = lastStatus;
+      }
+      else
+      {
+	param1 = message[j++];
+	lastStatus = status;
+      }
+      Event::Type type {static_cast<Event::Type>(status & 0xF0)};
+      param2 = message[j++];
+      if ( type == Event::NoteOn && param2 == 0 )
+	type = Event::NoteOff;
+      recorder.receiveEvent(Event{0, type, 0, param1, param2});
+    }
+    packet = MIDIPacketNext(packet);
+  }
   MidiInput = true;
-  Event event{0, static_cast<Event::Type>(message[0] & 0xF0), 0, message[1], message[2]};
-  recorder.receiveEvent(event);
 }
 
 
@@ -43,7 +68,9 @@ int main(int argc, char *argv[])
   // metronome
   // record track test
   sequence.getTrack(1).channel = 1;
-  recorder.setRecordTrack(1);
+  sequence.getTrack(2).channel = 2;
+  sequence.getTrack(3).channel = 3;
+  sequence.getTrack(4).channel = 4;
 
   initscr();
   start_color();
