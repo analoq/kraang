@@ -81,7 +81,7 @@ public:
       {
 	case Event::NoteOn:
 	  event.position = quantize(event.position);
-	  if ( event.position > track.length*sequence.getTicks() )
+	  if ( event.position >= track.length*sequence.getTicks() )
 	    event.position -= track.length*sequence.getTicks();
 	  sequence.addEvent(record_track, event);
 	  break;
