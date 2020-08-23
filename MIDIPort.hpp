@@ -1,5 +1,6 @@
 #ifndef MIDIPORT_HPP
 #define MIDIPORT_HPP
+#include "Event.hpp"
 
 class MIDIPort
 {

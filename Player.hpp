@@ -138,7 +138,7 @@ public:
     setMeter(result.numerator, result.denominator);
   }
 
-  bool tick()
+  bool tick(const bool send_events = true)
   {
     if ( !playing )
       return true;
@@ -148,45 +148,48 @@ public:
 
       if ( track.state == Track::ON || track.state == Track::TURNING_OFF )
       {
-	if ( sequence.hasEvents(i) && track.events_remain )
-	{
-	  while ( true )
-	  {
-	    const Event &event = sequence.getEvent(i);
-	    if ( event.position > track.position )
-	      break;
-	    switch ( event.type )
-	    {
-	      case Event::Tempo:
-		setTempo(event.getTempo());
-		break;
-	      case Event::Meter:
-		setMeter(event.param0, event.param1);
-		break;
-	      default:
-		if ( i != 0 || metronome )
-		{
-		  track.played = true;
-		  midi_port.send(track.channel, event);
-		}
-	    }
-	    if ( !sequence.nextEvent(i) )
-	    {
-	      track.events_remain = false;
-	      break;
-	    }
-	  }
-	}
-	else
-	  track.events_remain = false;
+      	if ( send_events )
+      	{
+          if ( sequence.hasEvents(i) && track.events_remain )
+          {
+              while ( true )
+              {
+                  const Event &event = sequence.getEvent(i);
+                  if ( event.position > track.position )
+                      break;
+                  switch ( event.type )
+                  {
+                      case Event::Tempo:
+                          setTempo(event.getTempo());
+                          break;
+                      case Event::Meter:
+                          setMeter(event.param0, event.param1);
+                          break;
+                      default:
+                          if ( i != 0 || metronome )
+                          {
+                              track.played = true;
+                              midi_port.send(track.channel, event);
+                          }
+                  }
+                  if ( !sequence.nextEvent(i) )
+                  {
+                      track.events_remain = false;
+                      break;
+                  }
+              }
+          }
+          else
+              track.events_remain = false;
+      	}
 
-	track.position ++;
-	if ( track.length && track.position == track.length*sequence.getTicks() )
-	{
-	  track.position = 0;
-	  track.events_remain = true;
-	  sequence.returnToZero(i);
-	}
+        track.position ++;
+        if ( track.length && track.position == track.length*sequence.getTicks() )
+        {
+            track.position = 0;
+            track.events_remain = true;
+            sequence.returnToZero(i);
+        }
       }
     }
 
@@ -198,15 +201,15 @@ public:
       {
         beat = 0;
         measure ++;
-	// flip tracks on or off
-	for ( uint8_t i{1}; i < TRACKS; ++i )
-	{
-	  Track &track {sequence.getTrack(i)};
-	  if ( track.state == Track::TURNING_ON )
-	    track.state = Track::ON;
-	  else if ( track.state == Track::TURNING_OFF )
-	    track.state = Track::OFF;
-	}
+        // flip tracks on or off
+        for ( uint8_t i{1}; i < TRACKS; ++i )
+        {
+            Track &track {sequence.getTrack(i)};
+            if ( track.state == Track::TURNING_ON )
+                track.state = Track::ON;
+            else if ( track.state == Track::TURNING_OFF )
+                track.state = Track::OFF;
+        }
       }
       visuals_changed = true;
     }
