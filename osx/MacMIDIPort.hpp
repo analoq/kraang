@@ -17,7 +17,9 @@ private:
   MIDIEndpointRef MIDISource;
 
 public:
-  MacMIDIPort(const int out_port, const int in_port)
+  bool played;
+
+  MacMIDIPort(const int out_port, const int in_port) : played{false}
   {
     MIDIClientCreate(CFSTR("analoq.kraang"), NULL, NULL, &MIDIClient);
     MIDIInputPortCreate(MIDIClient, CFSTR("Input port"), MidiHandler, this, &MIDIInPort);
@@ -51,6 +53,7 @@ public:
     }
     //MIDIReceived(MIDIOutput, &pktlist);
     MIDISend(MIDIOutPort, MIDIDest, &pktlist);
+    played = true;
   }
 };
 

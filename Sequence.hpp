@@ -28,10 +28,9 @@ struct Track
     TURNING_ON,
     TURNING_OFF
   } state;
-  bool played;
 
   Track() : position{0}, channel{0}, length{0},
-    events_remain{true}, state{ON}, played{false}
+    events_remain{true}, state{ON}
   {
   }
 };

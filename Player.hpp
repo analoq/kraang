@@ -3,6 +3,7 @@
 #include <math.h>
 #include "Sequence.hpp"
 #include "MIDIPort.hpp"
+#include "Recorder.hpp"
 
 class Player
 {
@@ -17,13 +18,14 @@ private:
   uint32_t delay;
   Sequence &sequence;
   MIDIPort &midi_port;
+  Recorder &recorder;
   bool playing;
   bool metronome;
   bool visuals_changed;
 
 public:
-  Player(Sequence &s, MIDIPort &p)
-    : position{0}, sequence{s}, midi_port{p}, playing{false}, metronome{true}
+  Player(Sequence &s, MIDIPort &p, Recorder &r)
+    : position{0}, sequence{s}, midi_port{p}, recorder{r}, playing{false}, metronome{true}
   {
     setTempo(500000);
     setMeter(4,4);
@@ -80,11 +82,13 @@ public:
   {
     returnToZero();
     playing = true;
+    recorder.setIsPlaying(playing);
   }
 
   void stop()
   {
     playing = false;
+    recorder.setIsPlaying(playing);
     for ( uint8_t c {0}; c < 16; ++c )
       midi_port.send(c, Event::allNotesOff());
   }
@@ -167,10 +171,7 @@ public:
                           break;
                       default:
                           if ( i != 0 || metronome )
-                          {
-                              track.played = true;
                               midi_port.send(track.channel, event);
-                          }
                   }
                   if ( !sequence.nextEvent(i) )
                   {
