@@ -2,6 +2,7 @@
 #define BUFFER_HPP
 #ifdef CATCH_CONFIG_MAIN
 #include <sstream>
+#include <algorithm>
 using namespace std;
 #endif
 #include <stdint.h>
@@ -33,6 +34,7 @@ private:
   int16_t available;
   int16_t pointer[TRACKS];
   int16_t head[TRACKS];
+  int16_t tail[TRACKS];
   Node<T> buffer[SIZE];
 
   struct SearchResult
@@ -46,7 +48,10 @@ private:
   {
     SearchResult result;
     result.last = UNDEFINED;
-    result.curr = pointer[track];
+    if ( pointer[track] == UNDEFINED )
+      result.curr = tail[track];
+    else
+      result.curr = pointer[track];
     result.go_right = data >= buffer[result.curr].data;
     while ( true )
     {
@@ -96,6 +101,7 @@ public:
     {
       pointer[i] = UNDEFINED;
       head[i] = UNDEFINED;
+      tail[i] = UNDEFINED;
     }
     available = 0;
   }
@@ -110,14 +116,9 @@ public:
     return pointer[track] != UNDEFINED;
   }
 
-  bool hasEvents(const uint8_t track) const
+  void setUndefined(const uint8_t track)
   {
-    return head[track] != UNDEFINED;
-  }
-
-  bool hasNext(const uint8_t track) const
-  {
-    return buffer[pointer[track]].next != UNDEFINED;
+    pointer[track] = UNDEFINED;
   }
 
   void next(const uint8_t track)
@@ -152,6 +153,7 @@ public:
     if ( head[track] == UNDEFINED )
     {
       head[track] = new_node;
+      tail[track] = new_node;
       pointer[track] = new_node;
       buffer[new_node].prev = UNDEFINED;
       buffer[new_node].next = UNDEFINED;
@@ -165,14 +167,17 @@ public:
 
       if ( go_right && curr == UNDEFINED )
       {
+	// add to end
 	if ( last != UNDEFINED )
 	  buffer[last].next = new_node;
 	buffer[new_node].prev = last;
 	buffer[new_node].next = UNDEFINED;
 	pointer[track] = new_node;
+	tail[track] = new_node;
       }
       else if ( !go_right && curr == UNDEFINED )
       {
+	// add to beginning
 	buffer[new_node].prev = UNDEFINED;
 	buffer[new_node].next = head[track];
 	buffer[head[track]].prev = new_node;
@@ -207,6 +212,8 @@ public:
     if ( head[track] == UNDEFINED )
       return;
     const int16_t curr {pointer[track]};
+    if ( curr == tail[track] )
+      tail[track] = buffer[curr].prev;
     if ( pointer[track] == head[track] )
     {
       head[track] = buffer[head[track]].next;
@@ -224,7 +231,7 @@ public:
 	pointer[track] = buffer[curr].next;
       }
       else
-	pointer[track] = buffer[curr].prev;
+	pointer[track] = UNDEFINED; //buffer[curr].prev;
     }
 
     buffer[curr] = Node<T>{};
@@ -236,6 +243,11 @@ public:
   int16_t getHead(uint8_t track) const
   {
     return head[track];
+  }
+
+  int16_t getTail(uint8_t track) const
+  {
+    return tail[track];
   }
 
   int16_t getPointer(uint8_t track) const
@@ -268,7 +280,7 @@ public:
   string dump() const
   {
     stringstream result;
-    for (int i {0}; i < SIZE; i ++ )
+    for (int i {0}; i < min(static_cast<uint16_t>(32), SIZE); i ++ )
     {
       if (buffer[i].prev == UNDEFINED)
 	result << 'u';

@@ -20,12 +20,11 @@ private:
   MIDIPort &midi_port;
   Recorder &recorder;
   bool playing;
-  bool metronome;
   bool visuals_changed;
 
 public:
   Player(Sequence &s, MIDIPort &p, Recorder &r)
-    : position{0}, sequence{s}, midi_port{p}, recorder{r}, playing{false}, metronome{true}
+    : position{0}, sequence{s}, midi_port{p}, recorder{r}, playing{false}
   {
     setTempo(500000);
     setMeter(4,4);
@@ -98,16 +97,6 @@ public:
     return playing;
   }
 
-  void setMetronome(bool m)
-  {
-    metronome = m;
-  }
-
-  bool isMetronomeOn() const
-  {
-    return metronome;
-  }
-
   const bool visualsChanged()
   {
     if ( visuals_changed )
@@ -150,45 +139,43 @@ public:
     {
       Track &track {sequence.getTrack(i)};
 
-      if ( track.state == Track::ON || track.state == Track::TURNING_OFF )
+      if ( track.state == Track::OVERDUBBING ||
+           track.state == Track::OVERWRITING ||
+	   track.state == Track::OVERDUBBING_TO_OVERWRITING ||
+	   track.state == Track::TURNING_OFF )
       {
       	if ( send_events )
       	{
-          if ( sequence.hasEvents(i) && track.events_remain )
-          {
-              while ( true )
-              {
-                  const Event &event = sequence.getEvent(i);
-                  if ( event.position > track.position )
-                      break;
-                  switch ( event.type )
-                  {
-                      case Event::Tempo:
-                          setTempo(event.getTempo());
-                          break;
-                      case Event::Meter:
-                          setMeter(event.param0, event.param1);
-                          break;
-                      default:
-                          if ( i != 0 || metronome )
-                              midi_port.send(track.channel, event);
-                  }
-                  if ( !sequence.nextEvent(i) )
-                  {
-                      track.events_remain = false;
-                      break;
-                  }
-              }
-          }
-          else
-              track.events_remain = false;
+	  while ( sequence.notUndefined(i) )
+	  {
+	      const Event &event = sequence.getEvent(i);
+	      if ( event.position > track.position )
+		  break;
+	      bool advance_event;
+	      if ( !recorder.handlePlayEvent(i, event, advance_event) )
+	      {
+		switch ( event.type )
+		{
+		    case Event::Tempo:
+			setTempo(event.getTempo());
+			break;
+		    case Event::Meter:
+			setMeter(event.param0, event.param1);
+			break;
+		    default:
+			midi_port.send(track.channel, event);
+		}
+	      }
+
+	      if ( advance_event )
+		sequence.nextEvent(i);
+	  }
       	}
 
         track.position ++;
         if ( track.length && track.position == track.length*sequence.getTicks() )
         {
             track.position = 0;
-            track.events_remain = true;
             sequence.returnToZero(i);
         }
       }
@@ -202,21 +189,13 @@ public:
       {
         beat = 0;
         measure ++;
-        // flip tracks on or off
-        for ( uint8_t i{1}; i < TRACKS; ++i )
-        {
-            Track &track {sequence.getTrack(i)};
-            if ( track.state == Track::TURNING_ON )
-                track.state = Track::ON;
-            else if ( track.state == Track::TURNING_OFF )
-                track.state = Track::OFF;
-        }
-      }
+	recorder.handleMeasure();
+     }
       visuals_changed = true;
     }
 
     for ( uint8_t i{1}; i < TRACKS; ++i )
-      if ( sequence.getTrack(i).events_remain )
+      if ( sequence.notUndefined(i) )
         return true;
     return false;
   }

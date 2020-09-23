@@ -20,17 +20,18 @@ struct Track
   uint32_t position;
   uint8_t channel;
   uint8_t length;
-  bool events_remain;
   enum
   {
-    ON,
+    OVERDUBBING,
+    OVERWRITING,
     OFF,
-    TURNING_ON,
-    TURNING_OFF
+    OFF_TO_OVERDUBBING,
+    OFF_TO_OVERWRITING,
+    OVERDUBBING_TO_OVERWRITING,
+    TURNING_OFF,
   } state;
 
-  Track() : position{0}, channel{0}, length{0},
-    events_remain{true}, state{ON}
+  Track() : position{0}, channel{0}, length{0}, state{OVERDUBBING}
   {
   }
 };
@@ -109,7 +110,6 @@ public:
   void returnToZero(const uint8_t t)
   {
     track[t].position = 0;
-    track[t].events_remain = true;
     buffer.returnToZero(t);
   }
 
@@ -122,10 +122,9 @@ public:
       if ( buffer.notUndefined(t) )
       {
 	const Event &event {buffer.get(t)};
-	track[t].events_remain = event.position >= result.position;
+	if ( event.position < result.position )
+	  buffer.setUndefined(t);
       }
-      else
-	track[t].events_remain = false;
     }
     return result;
   }
@@ -135,24 +134,25 @@ public:
     return buffer.get(track);
   }
 
-  bool hasEvents(const uint8_t track)
+  bool notUndefined(const uint8_t track)
   {
-    return buffer.hasEvents(track);
+    return buffer.notUndefined(track);
   }
 
-  bool nextEvent(const uint8_t track)
+  void nextEvent(const uint8_t track)
   {
-    if ( buffer.hasNext(track) )
-    {
-      buffer.next(track);
-      return true;
-    }
-    return false;
+    assert(buffer.notUndefined(track));
+    buffer.next(track);
   }
 
   void addEvent(const uint8_t track, const Event &event)
   {
     buffer.insert(track, event);
+  }
+
+  void removeEvent(const uint8_t track)
+  {
+    buffer.remove(track);
   }
 
   #ifdef CATCH_CONFIG_MAIN

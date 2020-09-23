@@ -2,6 +2,7 @@
 #include <thread>
 #include <chrono>
 #include <ncurses.h>
+#define CATCH_CONFIG_MAIN
 #include "../Sequence.hpp"
 #include "../Player.hpp"
 #include "../Recorder.hpp"
@@ -66,23 +67,13 @@ enum {
   NORMAL,
   SELECT_TRACK,
 } Mode;
-
-enum {
-  OFF,
-  OVERDUB,
-} RecMode;
-
-bool RecReplace = false;
+bool Overwrite {false};
 
 void handle_track(const uint8_t t)
 {
-  if ( Mode == SELECT_TRACK )
-  {
-    recorder.setRecordTrack(t);
-    Mode = NORMAL;
-  }
-  else
-    recorder.toggleTrack(t);
+  recorder.setRecordTrack(t);
+  if ( Mode == NORMAL )
+    recorder.toggleTrack(t, Overwrite);
 }
 
 int main(int argc, char *argv[])
@@ -92,10 +83,13 @@ int main(int argc, char *argv[])
   recorder.initMetronome();
   
   // record track test
-  sequence.getTrack(1).channel = 1;
-  sequence.getTrack(2).channel = 2;
-  sequence.getTrack(3).channel = 3;
-  sequence.getTrack(4).channel = 4;
+  for ( int i = 0; i < TRACKS-4; i += 4 )
+  {
+    sequence.getTrack(i+1).channel = 1;
+    sequence.getTrack(i+2).channel = 2;
+    sequence.getTrack(i+3).channel = 3;
+    sequence.getTrack(i+4).channel = 4;
+  }
 
   // turn tracks off
   for ( int i = 1; i < TRACKS; i ++ )
@@ -129,7 +123,7 @@ int main(int argc, char *argv[])
     mvprintw(1, 0, "t%02d c%02d l%02d p%03d",
 	     recorder.getRecordTrack(), track.channel, track.length, track.position);
  
-    mvprintw(3, 0, "[%c]", player.isMetronomeOn() ? 'X' : ' ');
+    mvprintw(3, 0, "[%c]", recorder.isMetronomeOn() ? 'X' : ' ');
     mvprintw(4, 0, "Metro");
 
     mvprintw(3, 8, "[%c]", player.isPlaying() ? 'X' : ' ');
@@ -138,11 +132,11 @@ int main(int argc, char *argv[])
     mvprintw(3, 16, "[%c]", Mode == SELECT_TRACK ? 'X' : ' ');
     mvprintw(4, 16, "Select");
 
-    if ( RecMode == OFF )
+    if ( Overwrite )
+      mvprintw(3, 24, "[x]");
+    else
       mvprintw(3, 24, "[ ]");
-    else if ( RecMode == OVERDUB )
-      mvprintw(3, 24, "[X]");
-    mvprintw(4, 24, "Replace");
+    mvprintw(4, 24, "Overwrite");
 
     MidiInput = false;
     for ( uint8_t i{0}; i < 3; i ++ )
@@ -154,13 +148,20 @@ int main(int argc, char *argv[])
 	char state;
 	switch ( track.state )
 	{
-	  case Track::ON:
+	  case Track::OVERDUBBING:
 	    state = 'X';
+	    break;
+	  case Track::OVERDUBBING_TO_OVERWRITING:
+	    state = 'o';
+	    break;
+	  case Track::OVERWRITING:
+	    state = 'O';
 	    break;
 	  case Track::OFF:
 	    state = ' ';
 	    break;
-	  case Track::TURNING_ON:
+	  case Track::OFF_TO_OVERDUBBING:
+	  case Track::OFF_TO_OVERWRITING:
 	    state = '<';
 	    break;
 	  case Track::TURNING_OFF:
@@ -179,7 +180,7 @@ int main(int argc, char *argv[])
     switch ( getch() )
     {
       case '1':
-	player.setMetronome(!player.isMetronomeOn());
+	recorder.setMetronome(!recorder.isMetronomeOn());
 	break;
       case '2':
 	if ( player.isPlaying() )
@@ -189,15 +190,18 @@ int main(int argc, char *argv[])
 	break;
       case '3':
 	if ( Mode == NORMAL )
+	{
 	  Mode = SELECT_TRACK;
+	  recorder.setIsRecording(false);
+	}
 	else
+	{
 	  Mode = NORMAL;
+	  recorder.setIsRecording(true);
+	}
 	break;
       case '4':
-	if ( RecMode == OFF )
-	  RecMode = OVERDUB;
-	else if ( RecMode == OVERDUB )
-	  RecMode = OFF;
+	Overwrite = !Overwrite;
 	break;
       case 'q':
 	handle_track(1);
@@ -243,4 +247,6 @@ int main(int argc, char *argv[])
 
   player.stop();
   endwin();
+
+  cout << sequence.getBuffer().dump() << endl;
 }

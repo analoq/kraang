@@ -56,4 +56,49 @@ public:
     return position <= a.position;
   }
 };
+
+#ifdef CATCH_CONFIG_MAIN
+const char *getNote(const int note)
+{
+  // 60 = C4
+  const char *notes[12] = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
+  return notes[note % 12];
+}
+
+int getOctave(const int note)
+{
+  return note / 12 - 1;
+}
+
+ostream& operator<<(ostream &o, const Event& event)
+{ 
+  o << event.position << ":";
+  switch ( event.type )
+  { 
+    case Event::NoteOn:
+      o << "NoteOn,"
+        << getNote(event.param1) << getOctave(event.param1) << ","
+        << static_cast<int>(event.param2);
+      break;
+    case Event::NoteOff:
+      o << "NoteOff,"
+        << getNote(event.param1) << getOctave(event.param1);
+      break;
+    case Event::Tempo: 
+      o << "Tempo," << event.getTempo();
+      break;
+    case Event::Meter: 
+      o << "Meter," << static_cast<int>(event.param0) << "/"
+        << static_cast<int>(event.param1);
+      break;
+    default:
+      o << static_cast<int>(event.type)
+        << "," << static_cast<int>(event.param1)
+        << "," << static_cast<int>(event.param2);
+  } 
+  o << endl;
+  return o;
+}
+#endif
+
 #endif

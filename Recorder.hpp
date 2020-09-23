@@ -12,9 +12,12 @@ private:
   uint8_t record_track;
   const uint8_t metronome_track {0};
   bool is_playing;
+  bool is_recording;
+  bool metronome;
 public:
   Recorder(Sequence &s, MIDIPort &mp)
-    : is_playing{false}, sequence{s}, midi_port{mp}, quantization{6}, record_track{1}
+    : is_playing{false}, is_recording{true}, metronome{true}, quantization{6}, record_track{1},
+      sequence{s}, midi_port{mp}
   {
   }
 
@@ -37,9 +40,24 @@ public:
       sequence.setTrackLength(i, 8);
   }
 
+  void setMetronome(bool m)
+  {
+    metronome = m;
+  }
+
+  bool isMetronomeOn() const
+  {
+    return metronome;
+  }
+
   void setIsPlaying(const bool playing)
   {
     is_playing = playing;
+  }
+
+  void setIsRecording(const bool recording)
+  {
+    is_recording = recording;
   }
 
   uint8_t getRecordTrack() const
@@ -52,16 +70,37 @@ public:
     record_track = t;
   }
 
-  void toggleTrack(const uint8_t t)
+  void toggleTrack(const uint8_t t, bool overwrite)
   {
     Track &track {sequence.getTrack(t)};
-    if ( track.state == Track::ON )
-      track.state = Track::TURNING_OFF;
-    else if ( track.state == Track::OFF )
+    switch ( track.state )
     {
-      track.state = Track::TURNING_ON;
-      sequence.returnToZero(t);
-    }
+      case Track::OFF:
+	sequence.returnToZero(t);
+	if ( overwrite )
+	  track.state = Track::OFF_TO_OVERWRITING;
+	else
+	  track.state = Track::OFF_TO_OVERDUBBING;
+	break;
+      case Track::OVERDUBBING:
+	if ( overwrite )
+	  track.state = Track::OVERDUBBING_TO_OVERWRITING;
+	else
+	  track.state = Track::TURNING_OFF;
+	break;
+      case Track::OVERWRITING:
+	track.state = Track::TURNING_OFF;
+	break;
+      case Track::OFF_TO_OVERWRITING:
+      case Track::OFF_TO_OVERDUBBING:
+	track.state = Track::OFF;
+	break;
+      case Track::OVERDUBBING_TO_OVERWRITING:
+	track.state = Track::OVERDUBBING;
+	break;
+      case Track::TURNING_OFF:
+	break;
+   }
   }
 
   uint8_t getQuantization() const
@@ -83,7 +122,9 @@ public:
   {
     const Track &track {sequence.getTrack(record_track)};
     event.position = track.position;
-    if ( is_playing && (track.state == Track::ON || track.state == Track::TURNING_OFF) )
+    if ( is_playing && is_recording && (track.state == Track::OVERDUBBING ||
+	                                track.state == Track::OVERWRITING ||
+	                                track.state == Track::TURNING_OFF) )
     {
       switch ( event.type )
       {
@@ -101,6 +142,62 @@ public:
       }
     }
     midi_port.send(track.channel, event);
+  }
+
+  bool handlePlayEvent(const uint8_t track_index, const Event &event, bool &advance_event)
+  {
+    const Track &track {sequence.getTrack(track_index)};
+    advance_event = true;
+    if ( !is_recording )
+      return false;
+    if ( track_index == 0 )
+    {
+      if ( event.type == Event::Tempo || event.type == Event::Meter )
+	return false;
+      if ( metronome )
+	midi_port.send(track.channel, event);
+      return true;
+    }
+    else if ( track_index == record_track )
+    {
+      if ( track.state == Track::OVERWRITING )
+      {
+	sequence.removeEvent(record_track);
+	advance_event = false;
+	return true;
+      }
+    }
+    return false;
+  }
+
+  void handleMeasure()
+  {
+    // flip tracks on or off
+    for ( uint8_t i{1}; i < TRACKS; ++i )
+    {
+	Track &track {sequence.getTrack(i)};
+	switch ( track.state )
+	{
+	  case Track::OFF_TO_OVERDUBBING:
+	    track.state = Track::OVERDUBBING;
+	    break;
+      	  case Track::OFF_TO_OVERWRITING:
+	    track.state = Track::OVERWRITING;
+	    break;
+	  case Track::TURNING_OFF:
+	    track.state = Track::OFF;
+	    break;
+	  case Track::OVERDUBBING_TO_OVERWRITING:
+	    track.state = Track::OVERWRITING;
+	    break;
+	  case Track::OVERWRITING:
+	    track.state = Track::OVERDUBBING;
+	    break;
+	  case Track::OVERDUBBING:
+	  case Track::OFF:
+	    break;
+	}
+    }
   }
 };
 #endif

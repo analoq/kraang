@@ -1,4 +1,5 @@
 #include "../Sequence.hpp"
+#include "../Recorder.hpp"
 #include "../Player.hpp"
 #include "CFile.hpp"
 #include "CTiming.hpp"
@@ -27,7 +28,8 @@ int main(int argc, char *argv[])
   CFile file{argv[1]};
   MIDIFile midi_file{file};
   midi_file.import(sequence);
-  Player player{sequence, midi_port};
+  Recorder recorder{sequence, midi_port};
+  Player player{sequence, midi_port, recorder};
   cout << "Ticks: " << sequence.getTicks() << endl;
   cin.ignore(1);
   int count = 0;
