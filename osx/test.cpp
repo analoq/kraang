@@ -456,7 +456,7 @@ TEST_CASE("Player Count", "[player]")
 {
   Sequence sequence;
   TestMIDIPort midi_port;
-  Recorder recorder{sequence, midi_port};
+  Recorder recorder{sequence, midi_port, midi_port};
   Player player{sequence, midi_port, recorder};
   sequence.addEvent(0, Event{0, Event::Meter, 3, 4, 0});
   sequence.addEvent(0, Event{24*3, Event::Meter, 6, 8, 0});
@@ -493,7 +493,7 @@ TEST_CASE("Player Play", "[player]")
   CFile file {"midi_1.mid"};
   MIDIFile midi_file{file};
   midi_file.import(sequence);
-  Recorder recorder{sequence, midi_port};
+  Recorder recorder{sequence, midi_port, midi_port};
   Player player{sequence, midi_port, recorder};
   player.play();
   for ( int i{0}; i < 480*7; i ++ )
@@ -554,7 +554,7 @@ TEST_CASE("Player loop", "[player]")
   TestMIDIPort midi_port;
   TestTiming timing;
   Sequence sequence;
-  Recorder recorder{sequence, midi_port};
+  Recorder recorder{sequence, midi_port, midi_port};
   Player player{sequence, midi_port, recorder};
   player.setTempo(600000);
   Track &track {sequence.getTrack(1)};
