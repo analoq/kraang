@@ -8,6 +8,7 @@ class Recorder
 private:
   Sequence &sequence;
   MIDIPort &midi_port;
+  MIDIPort &metronome_port;
   uint8_t quantization;
   uint8_t record_track;
   const uint8_t metronome_track {0};
@@ -15,9 +16,9 @@ private:
   bool is_recording;
   bool metronome;
 public:
-  Recorder(Sequence &s, MIDIPort &mp)
+  Recorder(Sequence &s, MIDIPort &mp, MIDIPort &metp)
     : is_playing{false}, is_recording{true}, metronome{true}, quantization{6}, record_track{1},
-      sequence{s}, midi_port{mp}
+      sequence{s}, midi_port{mp}, metronome_port{metp}
   {
   }
 
@@ -28,13 +29,13 @@ public:
     sequence.setTrackLength(metronome_track, 4);
     sequence.getTrack(metronome_track).channel = 0;
     sequence.addEvent(metronome_track, Event{ticks*0, Event::NoteOn, 0, 60, 110});
-    sequence.addEvent(metronome_track, Event{ticks*0 + ticks/4, Event::NoteOff, 0, 60, 0});
+    sequence.addEvent(metronome_track, Event{ticks*0 + ticks/8, Event::NoteOff, 0, 60, 0});
     sequence.addEvent(metronome_track, Event{ticks*1, Event::NoteOn, 0, 60, 80});
-    sequence.addEvent(metronome_track, Event{ticks*1 + ticks/4, Event::NoteOff, 0, 60, 0});
+    sequence.addEvent(metronome_track, Event{ticks*1 + ticks/8, Event::NoteOff, 0, 60, 0});
     sequence.addEvent(metronome_track, Event{ticks*2, Event::NoteOn, 0, 60, 80});
-    sequence.addEvent(metronome_track, Event{ticks*2 + ticks/4, Event::NoteOff, 0, 60, 0});
+    sequence.addEvent(metronome_track, Event{ticks*2 + ticks/8, Event::NoteOff, 0, 60, 0});
     sequence.addEvent(metronome_track, Event{ticks*3, Event::NoteOn, 0, 60, 80});
-    sequence.addEvent(metronome_track, Event{ticks*3 + ticks/4, Event::NoteOff, 0, 60, 0});
+    sequence.addEvent(metronome_track, Event{ticks*3 + ticks/8, Event::NoteOff, 0, 60, 0});
     // default remaining tracks to 2 bar lengths
     for ( uint8_t i{1}; i < TRACKS; ++i )
       sequence.setTrackLength(i, 8);
@@ -43,6 +44,11 @@ public:
   void setMetronome(bool m)
   {
     metronome = m;
+    if ( !metronome )
+    {
+      const Track &track {sequence.getTrack(metronome_track)};
+      metronome_port.send(track.channel, Event::allNotesOff());
+    }
   }
 
   bool isMetronomeOn() const
@@ -53,6 +59,11 @@ public:
   void setIsPlaying(const bool playing)
   {
     is_playing = playing;
+    if ( !is_playing )
+    {
+      const Track &track {sequence.getTrack(metronome_track)};
+      metronome_port.send(track.channel, Event::allNotesOff());
+    }
   }
 
   void setIsRecording(const bool recording)
@@ -148,17 +159,15 @@ public:
   {
     const Track &track {sequence.getTrack(track_index)};
     advance_event = true;
-    if ( !is_recording )
-      return false;
     if ( track_index == 0 )
     {
       if ( event.type == Event::Tempo || event.type == Event::Meter )
 	return false;
       if ( metronome )
-	midi_port.send(track.channel, event);
+	metronome_port.send(track.channel, event);
       return true;
     }
-    else if ( track_index == record_track )
+    else if ( is_recording && track_index == record_track )
     {
       if ( track.state == Track::OVERWRITING )
       {
