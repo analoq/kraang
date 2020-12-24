@@ -207,10 +207,12 @@ public:
 	    track.state = Track::OFF;
 	    break;
 	  case Track::OVERDUBBING_TO_OVERWRITING:
-	    track.state = Track::OVERWRITING;
+	    if ( track.position == 0 )
+	      track.state = Track::OVERWRITING;
 	    break;
 	  case Track::OVERWRITING:
-	    track.state = Track::OVERDUBBING;
+        if ( track.position == 0 )
+          track.state = Track::OVERDUBBING;
 	    break;
 	  case Track::OVERDUBBING:
 	  case Track::OFF:
