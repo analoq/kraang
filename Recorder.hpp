@@ -1,5 +1,6 @@
 #ifndef RECORDER_HPP
 #define RECORDER_HPP
+#include <bitset>
 #include "Sequence.hpp"
 #include "MIDIPort.hpp"
 
@@ -15,10 +16,11 @@ private:
   bool is_playing;
   bool is_recording;
   bool metronome;
+  std::bitset<128> open_notes;
 public:
   Recorder(Sequence &s, MIDIPort &mp, MIDIPort &metp)
     : is_playing{false}, is_recording{true}, metronome{true}, quantization{6}, record_track{1},
-      sequence{s}, midi_port{mp}, metronome_port{metp}
+      sequence{s}, midi_port{mp}, metronome_port{metp}, open_notes{0}
   {
   }
 
@@ -139,17 +141,19 @@ public:
     {
       switch ( event.type )
       {
-	case Event::NoteOn:
-	  event.position = quantize(event.position);
-	  if ( event.position >= track.length*sequence.getTicks() )
-	    event.position -= track.length*sequence.getTicks();
-	  sequence.addEvent(record_track, event);
-	  break;
-	case Event::NoteOff:
-	  sequence.addEvent(record_track, event);
-	  break;
-	default:
-	  break;
+        case Event::NoteOn:
+          event.position = quantize(event.position);
+          if ( event.position >= track.length*sequence.getTicks() )
+            event.position -= track.length*sequence.getTicks();
+          sequence.addEvent(record_track, event);
+          open_notes[event.param1] = 1;
+          break;
+        case Event::NoteOff:
+          sequence.addEvent(record_track, event);
+          open_notes[event.param1] = 0;
+          break;
+        default:
+          break;
       }
     }
     midi_port.send(track.channel, event);
@@ -162,18 +166,24 @@ public:
     if ( track_index == 0 )
     {
       if ( event.type == Event::Tempo || event.type == Event::Meter )
-	return false;
+        return false;
       if ( metronome )
-	metronome_port.send(track.channel, event);
+        metronome_port.send(track.channel, event);
       return true;
     }
     else if ( is_recording && track_index == record_track )
     {
-      if ( track.state == Track::OVERWRITING )
+      if ( track.state == Track::OVERDUBBING )
       {
-	sequence.removeEvent(record_track);
-	advance_event = false;
-	return true;
+        if ( (event.type == Event::NoteOn || event.type == Event::NoteOff)
+             && open_notes[event.param1] )
+          return true;
+      }
+      else if ( track.state == Track::OVERWRITING )
+      {
+        sequence.removeEvent(record_track);
+        advance_event = false;
+        return true;
       }
     }
     return false;
