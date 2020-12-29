@@ -148,13 +148,13 @@ public:
       	{
 	  while ( sequence.notUndefined(i) )
 	  {
-	      const Event &event = sequence.getEvent(i);
+	      Event &event = sequence.getEvent(i);
 	      if ( event.position > track.position )
 		  break;
 	      bool advance_event;
 	      if ( !recorder.handlePlayEvent(i, event, advance_event) )
 	      {
-		switch ( event.type )
+		switch ( event.getType() )
 		{
 		    case Event::Tempo:
 			setTempo(event.getTempo());
@@ -172,11 +172,13 @@ public:
 	  }
       	}
 
+				recorder.handleTick(i);
         track.position ++;
         if ( track.length && track.position == track.length*sequence.getTicks() )
         {
             track.position = 0;
             sequence.returnToZero(i);
+						recorder.handleLoopEnd(track);
         }
       }
     }

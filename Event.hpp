@@ -3,10 +3,8 @@
 class Event
 {
 public:
-  uint32_t position;
   enum Type : uint8_t
   {
-    None = 0x00,
     NoteOff = 0x80,
     NoteOn = 0x90,
     PolyAfter = 0xA0,
@@ -17,16 +15,20 @@ public:
     SysEx = 0xF0,
     Tempo = 0xFE,
     Meter = 0xFF,
-  } type;
+  };
+  uint32_t position;
+private:
+	uint8_t type;
+public:
   uint8_t param0;
   uint8_t param1;
   uint8_t param2;
 
-  Event() : position{0}, type{None}, param0{0}, param1{0}, param2{0}
+  Event() : position{0}, type{NoteOff}, param0{0}, param1{0}, param2{0}
   {
   }
 
-  Event(uint32_t p, Type t, uint8_t p0, uint8_t p1, uint8_t p2 )
+  Event(uint32_t p, enum Type t, uint8_t p0, uint8_t p1, uint8_t p2 )
     : position{p}, type{t}, param0{p0}, param1{p1}, param2{p2}
   {
   }
@@ -35,6 +37,24 @@ public:
   {
     return Event{0, Event::Expression, 0, 0x78, 0x00};
   }
+
+  const enum Type getType() const
+  {
+		return static_cast<enum Type>(type | 0x80);
+  }
+
+	void setNew(const bool is_new)
+	{
+		if ( is_new )
+			type &= 0x7F;
+		else
+			type |= 0x80;
+	}
+
+	const bool isNew() const
+	{
+		return !(type & 0x80);
+	}
 
   const uint32_t getTempo() const
   {
@@ -73,7 +93,7 @@ int getOctave(const int note)
 ostream& operator<<(ostream &o, const Event& event)
 { 
   o << event.position << ":";
-  switch ( event.type )
+  switch ( event.getType() )
   { 
     case Event::NoteOn:
       o << "NoteOn,"
@@ -92,7 +112,7 @@ ostream& operator<<(ostream &o, const Event& event)
         << static_cast<int>(event.param1);
       break;
     default:
-      o << static_cast<int>(event.type)
+      o << static_cast<int>(event.getType())
         << "," << static_cast<int>(event.param1)
         << "," << static_cast<int>(event.param2);
   } 

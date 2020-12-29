@@ -12,7 +12,7 @@
 bool MidiInput {false};
 MacMIDIPort midi_port{0, 1};
 Sequence sequence;
-Recorder recorder{sequence, midi_port};
+Recorder recorder{sequence, midi_port, midi_port};
 Player player{sequence, midi_port, recorder};
 
 static void MidiHandler(const MIDIPacketList *packetList, void *readProcRefCon,

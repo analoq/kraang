@@ -40,10 +40,10 @@ public:
     MIDIPacketList pktlist;
     MIDIPacket *packet = MIDIPacketListInit(&pktlist);
     unsigned char data[3];
-    data[0] = event.type | channel;
+    data[0] = event.getType() | channel;
     data[1] = event.param1;
     data[2] = event.param2;
-    switch ( event.type )
+    switch ( event.getType() )
     {
       case Event::ProgChange:
 	MIDIPacketListAdd(&pktlist, sizeof(MIDIPacket), packet, 0, 2, data);

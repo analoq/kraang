@@ -27,6 +27,17 @@ public:
   }
 };
 
+template<class T>
+struct InsertResult {
+  T &new_node;
+  bool forward;
+
+  InsertResult(T &n) : new_node{n}, forward{false}
+  {
+  }
+};
+
+
 template<class T, uint16_t SIZE, uint8_t TRACKS>
 class Buffer
 {
@@ -41,6 +52,7 @@ private:
   {
     int16_t last;
     int16_t curr;
+    //int16_t offset;
     bool go_right;
   };
 
@@ -53,6 +65,7 @@ private:
     else
       result.curr = pointer[track];
     result.go_right = data >= buffer[result.curr].data;
+    //result.offset = 0;
     while ( true )
     {
       const T &current{buffer[result.curr].data};
@@ -65,6 +78,7 @@ private:
 	  break;
 	result.last = result.curr;
 	result.curr = buffer[result.curr].next;
+	//++ result.offset;
       }
       else
       {
@@ -75,6 +89,7 @@ private:
 	  break;
 	result.last = result.curr;
 	result.curr = buffer[result.curr].prev;
+	//-- result.offset;
       }
     }
     return result;
@@ -127,7 +142,7 @@ public:
     pointer[track] = current.next;
   }
 
-  const T &get(const uint8_t track) const
+  T &get(const uint8_t track)
   {
     assert(pointer[track] != UNDEFINED);
     return buffer[pointer[track]].data;
@@ -142,12 +157,13 @@ public:
       pointer[track] = result.curr;
   }
 
-  bool insert(const uint8_t track, const T &data)
+  const InsertResult<T> insert(const uint8_t track, const T &data)
   {
     assert(track < TRACKS);
     if ( available == UNDEFINED )
-      return false;
+      throw runtime_error{"Out of buffer space"};
     buffer[available].data = data;
+    InsertResult<T> insert_result{buffer[available].data};
     const int16_t new_node {available};
     available = buffer[available].next;
     if ( head[track] == UNDEFINED )
@@ -160,10 +176,11 @@ public:
     }
     else
     {
-      SearchResult result {search(track, data)};
+      const SearchResult result {search(track, data)};
       int16_t curr = result.curr;
       int16_t last = result.last;
       bool go_right = result.go_right;
+      //insert_result.forward |= result.offset > 0;
 
       if ( go_right && curr == UNDEFINED )
       {
@@ -172,7 +189,6 @@ public:
 	  buffer[last].next = new_node;
 	buffer[new_node].prev = last;
 	buffer[new_node].next = UNDEFINED;
-	pointer[track] = new_node;
 	tail[track] = new_node;
       }
       else if ( !go_right && curr == UNDEFINED )
@@ -190,8 +206,7 @@ public:
 	buffer[new_node].prev = buffer[curr].prev;
 	buffer[new_node].next = curr;
 	buffer[curr].prev = new_node;
-	pointer[track] = curr;
-	if ( head[track] == pointer[track] )
+	if ( head[track] == curr )
 	  head[track] = new_node;
       }
       else if ( !go_right )
@@ -202,8 +217,10 @@ public:
 	  buffer[buffer[curr].next].prev = new_node;
 	buffer[curr].next = new_node;
       }
+
     }
-    return true;
+    insert_result.forward |= pointer[track] == new_node;
+    return insert_result;
   }
   
   void remove(const uint8_t track)
@@ -231,7 +248,7 @@ public:
 	pointer[track] = buffer[curr].next;
       }
       else
-	pointer[track] = UNDEFINED; //buffer[curr].prev;
+	pointer[track] = UNDEFINED;
     }
 
     buffer[curr] = Node<T>{};

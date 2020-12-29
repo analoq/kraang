@@ -55,7 +55,7 @@ private:
     while ( buffer.notUndefined(TEMPO_TRACK) )
     {
       const Event &event {buffer.get(TEMPO_TRACK)};
-      if ( event.type == Event::Meter )
+      if ( event.getType() == Event::Meter )
       {
       	result.position = event.position;
       	m += result.position * result.denominator / (result.numerator * ticks * 4);
@@ -64,7 +64,7 @@ private:
       	if ( m >= measure )
       	  break;
       }
-      else if ( event.type == Event::Tempo )
+      else if ( event.getType() == Event::Tempo )
       	result.tempo = event.getTempo();
       buffer.next(TEMPO_TRACK);
     }
@@ -118,7 +118,7 @@ public:
     SeekResult result {getPosition(measure)};
     for ( uint8_t t {0}; t < TRACKS; ++t )
     {
-      buffer.seek(t, Event{result.position, Event::None, 0, 0, 0});
+      buffer.seek(t, Event{result.position, Event::NoteOff, 0, 0, 0});
       if ( buffer.notUndefined(t) )
       {
 	const Event &event {buffer.get(t)};
@@ -129,7 +129,7 @@ public:
     return result;
   }
 
-  const Event& getEvent(uint8_t track) const
+  Event& getEvent(uint8_t track)
   {
     return buffer.get(track);
   }
@@ -145,9 +145,9 @@ public:
     buffer.next(track);
   }
 
-  void addEvent(const uint8_t track, const Event &event)
+  InsertResult<Event> addEvent(const uint8_t track, const Event &event)
   {
-    buffer.insert(track, event);
+    return buffer.insert(track, event);
   }
 
   void removeEvent(const uint8_t track)

@@ -131,7 +131,7 @@ TEST_CASE("Insert One Track", "[buffer]")
   REQUIRE(buffer.dump() == "1:2:C u:0:C 0:u:D u:4:? u:u:? ");
   REQUIRE(buffer.getHead(0) == 1);
   REQUIRE(buffer.getTail(0) == 2);
-  REQUIRE(buffer.getPointer(0) == 2);
+  REQUIRE(buffer.getPointer(0) == 0);
   REQUIRE(buffer.traverse(0) == "CCD");
 
   buffer.insert(0, TestNode('A'));
@@ -139,7 +139,7 @@ TEST_CASE("Insert One Track", "[buffer]")
   REQUIRE(buffer.dump() == "1:2:C 3:0:C 0:u:D u:1:A u:u:? ");
   REQUIRE(buffer.getHead(0) == 3);
   REQUIRE(buffer.getTail(0) == 2);
-  REQUIRE(buffer.getPointer(0) == 2);
+  REQUIRE(buffer.getPointer(0) == 0);
   REQUIRE(buffer.traverse(0) == "ACCD");
 
   buffer.insert(0, TestNode('B'));
@@ -147,19 +147,19 @@ TEST_CASE("Insert One Track", "[buffer]")
   REQUIRE(buffer.dump() == "1:2:C 4:0:C 0:u:D u:4:A 3:1:B ");
   REQUIRE(buffer.getHead(0) == 3);
   REQUIRE(buffer.getTail(0) == 2);
-  REQUIRE(buffer.getPointer(0) == 2);
+  REQUIRE(buffer.getPointer(0) == 0);
   REQUIRE(buffer.traverse(0) == "ABCCD");
 }
 
-TEST_CASE("Buffer full", "[buffer]")
+/*TEST_CASE("Buffer full", "[buffer]")
 {
   Buffer<TestNode,4, 1> buffer;
-  REQUIRE(buffer.insert(0, TestNode('A')) == true);
-  REQUIRE(buffer.insert(0, TestNode('B')) == true);
-  REQUIRE(buffer.insert(0, TestNode('C')) == true);
-  REQUIRE(buffer.insert(0, TestNode('D')) == true);
-  REQUIRE(buffer.insert(0, TestNode(5)) == false);
-}
+  REQUIRE(buffer.insert(0, TestNode('A')).new_node != UNDEFINED);
+  REQUIRE(buffer.insert(0, TestNode('B')).new_node != UNDEFINED);
+  REQUIRE(buffer.insert(0, TestNode('C')).new_node != UNDEFINED);
+  REQUIRE(buffer.insert(0, TestNode('D')).new_node != UNDEFINED);
+  REQUIRE(buffer.insert(0, TestNode(5)).new_node == UNDEFINED);
+}*/
 
 TEST_CASE("Buffer clear", "[buffer]")
 {
@@ -322,7 +322,7 @@ TEST_CASE("Seek", "[buffer]")
 
   REQUIRE(buffer.getHead(0) == 0);
   REQUIRE(buffer.getTail(0) == 3);
-  REQUIRE(buffer.getPointer(0) == 3);
+  REQUIRE(buffer.getPointer(0) == 0);
   REQUIRE(buffer.dump() == "u:1:B 0:2:D 1:3:E 2:u:F ");
   REQUIRE(buffer.traverse(0) == "BDEF");
   
@@ -349,13 +349,20 @@ TEST_CASE("Event", "[event]")
 
   Event event{1, Event::NoteOn, 2, 3, 4};
   REQUIRE(event.position == 1);
-  REQUIRE(event.type == Event::NoteOn);
+  REQUIRE(event.getType() == Event::NoteOn);
   REQUIRE(event.param1 == 3);
   REQUIRE(event.param2 == 4);
 
   REQUIRE(event > Event{0,Event::NoteOn,2,3,4});
   REQUIRE(event >= Event{1,Event::NoteOff,5,6,7});
   REQUIRE(event <= Event{2,Event::NoteOff,5,6,7});
+
+	REQUIRE(event.isNew() == false);
+	event.setNew(true);
+	REQUIRE(event.isNew() == true);
+	REQUIRE(event.getType() == Event::NoteOn);
+	event.setNew(false);
+	REQUIRE(event.isNew() == false);
 }
 
 TEST_CASE("Sequence", "[sequence]")
@@ -582,6 +589,46 @@ TEST_CASE("Player loop", "[player]")
   }
 
   REQUIRE(midi_port.getLog() == result);
+}
+
+void playFor(const int ticks, TestMIDIPort &midi_port, TestTiming &timing, Player &player)
+{
+	for ( int i = 0; i < ticks; i ++ )
+	{
+	  midi_port.setTime(timing.getMicroseconds());
+    player.tick();
+    timing.delay(player.getDelay());
+	}
+}
+
+
+TEST_CASE("Recorder passthru", "[recorder]")
+{
+	TestMIDIPort midi_port;
+	TestTiming timing;
+	Sequence sequence;
+	Track &track {sequence.getTrack(1)};
+	track.length = 4;
+	track.state = Track::OVERDUBBING;
+	Recorder recorder{sequence, midi_port, midi_port};
+	recorder.setRecordTrack(1);
+	recorder.setIsRecording(true);
+  Player player{sequence, midi_port, recorder};
+  player.setTempo(600000);
+	player.play();
+
+	playFor(22, midi_port, timing, player);
+  recorder.receiveEvent(Event{0, Event::NoteOn, 0, 60, 60});
+	playFor(4, midi_port, timing, player);
+	REQUIRE(sequence.getBuffer().traverse(1) == "24:NoteOn,C4,60\n");
+  recorder.receiveEvent(Event{0, Event::NoteOn, 0, 72, 72});
+	playFor(24, midi_port, timing, player);
+	REQUIRE(sequence.getBuffer().traverse(1) == "24:NoteOn,C5,72\n"
+			                                        "24:NoteOn,C4,60\n");
+
+	char result[] = "525000:0:0:NoteOn,C4,60\n"
+									"625000:0:0:NoteOn,C5,72\n";
+	REQUIRE(midi_port.getLog() == result);
 }
 
 /*TEST_CASE("Recorder delete", "[recorder]")

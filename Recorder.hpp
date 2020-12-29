@@ -1,6 +1,5 @@
 #ifndef RECORDER_HPP
 #define RECORDER_HPP
-#include <bitset>
 #include "Sequence.hpp"
 #include "MIDIPort.hpp"
 
@@ -16,11 +15,13 @@ private:
   bool is_playing;
   bool is_recording;
   bool metronome;
-  std::bitset<128> open_notes;
+  static const uint8_t MAX_PENDING = 8;
+  Event pending[MAX_PENDING];
+  uint8_t pending_count = 0;
 public:
   Recorder(Sequence &s, MIDIPort &mp, MIDIPort &metp)
     : is_playing{false}, is_recording{true}, metronome{true}, quantization{6}, record_track{1},
-      sequence{s}, midi_port{mp}, metronome_port{metp}, open_notes{0}
+      sequence{s}, midi_port{mp}, metronome_port{metp}
   {
   }
 
@@ -131,41 +132,63 @@ public:
       return more;
   }
 
+  bool isRecordState(const uint8_t track_index, const Track &track)
+  {
+    return track_index == record_track && is_playing && is_recording &&
+	 (track.state == Track::OVERDUBBING || 
+	  track.state == Track::OVERWRITING ||
+	  track.state == Track::TURNING_OFF);
+  }
+
   void receiveEvent(Event event)
   {
     const Track &track {sequence.getTrack(record_track)};
-    event.position = track.position;
-    if ( is_playing && is_recording && (track.state == Track::OVERDUBBING ||
-	                                track.state == Track::OVERWRITING ||
-	                                track.state == Track::TURNING_OFF) )
-    {
-      switch ( event.type )
-      {
-        case Event::NoteOn:
-          event.position = quantize(event.position);
-          if ( event.position >= track.length*sequence.getTicks() )
-            event.position -= track.length*sequence.getTicks();
-          sequence.addEvent(record_track, event);
-          open_notes[event.param1] = 1;
-          break;
-        case Event::NoteOff:
-          sequence.addEvent(record_track, event);
-          open_notes[event.param1] = 0;
-          break;
-        default:
-          break;
-      }
-    }
     midi_port.send(track.channel, event);
+    if ( isRecordState(record_track, track) )
+    {
+      if (pending_count >= MAX_PENDING)
+        throw runtime_error{"Maxmimum pending"};
+      pending[pending_count++] = event;
+    }
   }
 
-  bool handlePlayEvent(const uint8_t track_index, const Event &event, bool &advance_event)
+  void handleTick(const uint8_t track_index)
+  {
+    const Track &track {sequence.getTrack(record_track)};
+    if ( isRecordState(track_index, track) )
+    {
+      // insert all pending recorded events
+      for ( uint8_t i = 0; i < pending_count; i ++ )
+      {
+	Event event = pending[i];
+        event.position = track.position;
+	if ( event.getType() == Event::NoteOn )
+	{
+	  event.position = quantize(event.position);
+	  if ( event.position >= track.length*sequence.getTicks() )
+	    event.position -= track.length*sequence.getTicks();
+	  InsertResult<Event> insert_result = sequence.addEvent(record_track, event);
+	  if ( insert_result.forward )
+	    insert_result.new_node.setNew(true);
+	}
+	else if ( event.getType() == Event::NoteOff )
+	{	
+	  InsertResult<Event> insert_result = sequence.addEvent(record_track, event);
+	  //if ( insert_result.forward )
+	  //  insert_result.new_node.setNew(true);
+	}
+      }
+      pending_count = 0;
+    }
+  }
+
+  bool handlePlayEvent(const uint8_t track_index, Event &event, bool &advance_event)
   {
     const Track &track {sequence.getTrack(track_index)};
     advance_event = true;
     if ( track_index == 0 )
     {
-      if ( event.type == Event::Tempo || event.type == Event::Meter )
+      if ( event.getType() == Event::Tempo || event.getType() == Event::Meter )
         return false;
       if ( metronome )
         metronome_port.send(track.channel, event);
@@ -175,14 +198,21 @@ public:
     {
       if ( track.state == Track::OVERDUBBING )
       {
-        if ( (event.type == Event::NoteOn || event.type == Event::NoteOff)
-             && open_notes[event.param1] )
-          return true;
+	if ( event.isNew() )
+	{
+	  event.setNew(false);
+	  return true;
+	}
       }
       else if ( track.state == Track::OVERWRITING )
       {
-        sequence.removeEvent(record_track);
-        advance_event = false;
+	if ( event.isNew() )
+	  event.setNew(false);
+	else
+	{
+          sequence.removeEvent(record_track);
+          advance_event = false;
+	}
         return true;
       }
     }
@@ -206,18 +236,31 @@ public:
 	  case Track::TURNING_OFF:
 	    track.state = Track::OFF;
 	    break;
-	  case Track::OVERDUBBING_TO_OVERWRITING:
-	    if ( track.position == 0 )
-	      track.state = Track::OVERWRITING;
-	    break;
-	  case Track::OVERWRITING:
-        if ( track.position == 0 )
-          track.state = Track::OVERDUBBING;
-	    break;
 	  case Track::OVERDUBBING:
+	  case Track::OVERDUBBING_TO_OVERWRITING:
+	  case Track::OVERWRITING:
 	  case Track::OFF:
 	    break;
 	}
+    }
+  }
+
+  void handleLoopEnd(Track &track)
+  {
+    switch ( track.state )
+    {
+      case Track::OVERDUBBING_TO_OVERWRITING:
+	track.state = Track::OVERWRITING;
+	break;
+      case Track::OVERWRITING:
+	track.state = Track::OVERDUBBING;
+	break;
+      case Track::OVERDUBBING:
+      case Track::OFF_TO_OVERDUBBING:
+      case Track::OFF_TO_OVERWRITING:
+      case Track::TURNING_OFF:
+      case Track::OFF:
+	break;
     }
   }
 };
