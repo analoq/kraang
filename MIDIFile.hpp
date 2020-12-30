@@ -61,14 +61,14 @@ public:
 	track_pos = fp.getPosition();
 	
 	// events
-	uint32_t track_time = 0;
+	int32_t track_time = 0;
 	uint8_t status = 0;
 	while (fp.getPosition() < track_pos+track_size)
 	{
 	  uint8_t event, channel;
 	  uint8_t param1, param2;
 	  
-	  uint32_t delta_time = read_varlength();
+	  int32_t delta_time = read_varlength();
 	  track_time += delta_time;
 	  
 	  uint8_t peak_ahead = fp.readByte();

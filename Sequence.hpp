@@ -9,7 +9,7 @@ static const int TEMPO_TRACK = 0;
 
 struct SeekResult
 {
-  uint32_t position;
+  int32_t position;
   uint32_t tempo;
   uint8_t numerator;
   uint8_t denominator;
@@ -17,7 +17,7 @@ struct SeekResult
 
 struct Track
 {
-  uint32_t position;
+  int32_t position;
   uint8_t channel;
   uint8_t length;
   enum

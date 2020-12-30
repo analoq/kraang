@@ -16,7 +16,7 @@ public:
     Tempo = 0xFE,
     Meter = 0xFF,
   };
-  uint32_t position;
+  int32_t position;
 private:
 	uint8_t type;
 public:
@@ -28,7 +28,7 @@ public:
   {
   }
 
-  Event(uint32_t p, enum Type t, uint8_t p0, uint8_t p1, uint8_t p2 )
+  Event(int32_t p, enum Type t, uint8_t p0, uint8_t p1, uint8_t p2 )
     : position{p}, type{t}, param0{p0}, param1{p1}, param2{p2}
   {
   }

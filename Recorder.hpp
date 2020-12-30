@@ -28,7 +28,7 @@ public:
   void initMetronome()
   {
     // create metronome track
-    const uint32_t ticks {sequence.getTicks()};
+    const int32_t ticks {sequence.getTicks()};
     sequence.setTrackLength(metronome_track, 4);
     sequence.getTrack(metronome_track).channel = 0;
     sequence.addEvent(metronome_track, Event{ticks*0, Event::NoteOn, 0, 60, 110});
