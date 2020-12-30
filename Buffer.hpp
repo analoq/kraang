@@ -160,8 +160,7 @@ public:
   const InsertResult<T> insert(const uint8_t track, const T &data)
   {
     assert(track < TRACKS);
-    if ( available == UNDEFINED )
-      throw runtime_error{"Out of buffer space"};
+    assert(available != UNDEFINED);
     buffer[available].data = data;
     InsertResult<T> insert_result{buffer[available].data};
     const int16_t new_node {available};

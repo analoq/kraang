@@ -146,8 +146,7 @@ public:
     midi_port.send(track.channel, event);
     if ( isRecordState(record_track, track) )
     {
-      if (pending_count >= MAX_PENDING)
-        throw runtime_error{"Maxmimum pending"};
+      assert(pending_count < MAX_PENDING);
       pending[pending_count++] = event;
     }
   }
