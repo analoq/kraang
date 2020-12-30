@@ -123,10 +123,10 @@ public:
     return quantization;
   }
 
-  uint32_t quantize(const uint32_t position) const
+  int32_t quantize(const int32_t position) const
   {
-    uint32_t less {position / quantization * quantization};
-    uint32_t more {less + quantization};
+    int32_t less {position / quantization * quantization};
+    int32_t more {less + quantization};
     if ( position - less <= more - position )
       return less;
     else
