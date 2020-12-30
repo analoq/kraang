@@ -31,14 +31,13 @@ public:
     const int32_t ticks {sequence.getTicks()};
     sequence.setTrackLength(metronome_track, 4);
     sequence.getTrack(metronome_track).channel = 0;
-    sequence.addEvent(metronome_track, Event{ticks*0, Event::NoteOn, 0, 60, 110});
-    sequence.addEvent(metronome_track, Event{ticks*0 + ticks/8, Event::NoteOff, 0, 60, 0});
-    sequence.addEvent(metronome_track, Event{ticks*1, Event::NoteOn, 0, 60, 80});
-    sequence.addEvent(metronome_track, Event{ticks*1 + ticks/8, Event::NoteOff, 0, 60, 0});
-    sequence.addEvent(metronome_track, Event{ticks*2, Event::NoteOn, 0, 60, 80});
-    sequence.addEvent(metronome_track, Event{ticks*2 + ticks/8, Event::NoteOff, 0, 60, 0});
-    sequence.addEvent(metronome_track, Event{ticks*3, Event::NoteOn, 0, 60, 80});
-    sequence.addEvent(metronome_track, Event{ticks*3 + ticks/8, Event::NoteOff, 0, 60, 0});
+    sequence.addEvent(metronome_track, Event{0, Event::NoteOn, 0, 60, 110});
+    sequence.addEvent(metronome_track, Event{ticks/8, Event::NoteOff, 0, 60, 0});
+    for ( uint8_t i = 1; i < 4; i ++ )
+    {
+      sequence.addEvent(metronome_track, Event{ticks*i, Event::NoteOn, 0, 60, 80});
+      sequence.addEvent(metronome_track, Event{ticks*i + ticks/8, Event::NoteOff, 0, 60, 0});
+    }
     // default remaining tracks to 2 bar lengths
     for ( uint8_t i{1}; i < TRACKS; ++i )
       sequence.setTrackLength(i, 8);
@@ -87,10 +86,12 @@ public:
   void toggleTrack(const uint8_t t, bool overwrite)
   {
     Track &track {sequence.getTrack(t)};
+    const Track &metronome {sequence.getTrack(metronome_track)};
     switch ( track.state )
     {
       case Track::OFF:
 	sequence.returnToZero(t);
+	track.position = metronome.position - metronome.length*sequence.getTicks();
 	if ( overwrite )
 	  track.state = Track::OFF_TO_OVERWRITING;
 	else
@@ -135,8 +136,8 @@ public:
   bool isRecordState(const uint8_t track_index, const Track &track)
   {
     return track_index == record_track && is_playing && is_recording &&
-	 (track.state == Track::OVERDUBBING || 
-	  track.state == Track::OVERWRITING ||
+	 (track.state == Track::OVERDUBBING || track.state == Track::OFF_TO_OVERDUBBING || 
+	  track.state == Track::OVERWRITING || track.state == Track::OFF_TO_OVERWRITING ||
 	  track.state == Track::TURNING_OFF);
   }
 
@@ -166,13 +167,17 @@ public:
 	  event.position = quantize(event.position);
 	  if ( event.position >= track.length*sequence.getTicks() )
 	    event.position -= track.length*sequence.getTicks();
-	  InsertResult<Event> insert_result = sequence.addEvent(record_track, event);
-	  if ( insert_result.forward )
-	    insert_result.new_node.setNew(true);
+	  if ( event.position >= 0 )
+	  {
+	    InsertResult<Event> insert_result = sequence.addEvent(record_track, event);
+	    if ( insert_result.forward )
+	      insert_result.new_node.setNew(true);
+	  }
 	}
 	else if ( event.getType() == Event::NoteOff )
-	{	
-	  InsertResult<Event> insert_result = sequence.addEvent(record_track, event);
+	{
+	  if ( event.position >= 0 )
+	    InsertResult<Event> insert_result = sequence.addEvent(record_track, event);
 	  //if ( insert_result.forward )
 	  //  insert_result.new_node.setNew(true);
 	}

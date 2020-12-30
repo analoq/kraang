@@ -139,10 +139,10 @@ public:
     {
       Track &track {sequence.getTrack(i)};
 
-      if ( track.state == Track::OVERDUBBING ||
-           track.state == Track::OVERWRITING ||
-	   track.state == Track::OVERDUBBING_TO_OVERWRITING ||
-	   track.state == Track::TURNING_OFF )
+      if ( track.state == Track::OVERDUBBING || track.state == Track::OFF_TO_OVERDUBBING ||
+           track.state == Track::OVERWRITING || track.state == Track::OFF_TO_OVERWRITING ||
+	         track.state == Track::OVERDUBBING_TO_OVERWRITING ||
+	         track.state == Track::TURNING_OFF )
       {
       	if ( send_events )
       	{
