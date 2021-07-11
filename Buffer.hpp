@@ -47,6 +47,7 @@ private:
   int16_t head[TRACKS];
   int16_t tail[TRACKS];
   Node<T> buffer[SIZE];
+  int16_t count;
 
   struct SearchResult
   {
@@ -119,6 +120,7 @@ public:
       tail[i] = UNDEFINED;
     }
     available = 0;
+    count = 0;
   }
 
   void returnToZero(const uint8_t track)
@@ -219,6 +221,7 @@ public:
 
     }
     insert_result.forward |= pointer[track] == new_node;
+    ++ count;
     return insert_result;
   }
   
@@ -253,6 +256,12 @@ public:
     buffer[curr] = Node<T>{};
     buffer[curr].next = available;
     available = curr;
+    -- count;
+  }
+
+  uint16_t getCount() const
+  {
+    return count;
   }
 
   #ifdef CATCH_CONFIG_MAIN
