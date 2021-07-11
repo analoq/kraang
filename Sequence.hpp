@@ -155,6 +155,11 @@ public:
     buffer.remove(track);
   }
 
+  uint8_t getUsage() const
+  {
+    return (buffer.getCount() * 100) / SIZE;
+  }
+
   #ifdef CATCH_CONFIG_MAIN
   Buffer<Event,SIZE,TRACKS> &getBuffer()
   {
